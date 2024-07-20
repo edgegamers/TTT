@@ -22,22 +22,14 @@ public class RoleBehavior : IRoleService, IPluginBehavior {
   private readonly IRoundService _roundService;
   private int _traitorsLeft;
 
-  public RoleBehavior(IPlayerService playerService) {
-    _roundService = new RoundBehavior(this);
+  public RoleBehavior(IPlayerService playerService, IRoundService roundService) {
+    _roundService = roundService;
     service       = playerService;
   }
 
   public void Start(BasePlugin parent) {
     ModelHandler.RegisterListener(parent);
-    _roundService.Start(parent);
-    /*
-    parent.RegisterEventHandler<EventPlayerConnectFull>(OnPlayerConnect);
-    parent.RegisterEventHandler<EventRoundFreezeEnd>(OnRoundStart);
-    parent.RegisterEventHandler<EventRoundEnd>(OnRoundEnd);
-    parent.RegisterEventHandler<EventPlayerDisconnect>(OnPlayerDisconnect);
-    parent.RegisterEventHandler<EventPlayerDeath>(OnPlayerDeath, HookMode.Pre);
-    parent.RegisterEventHandler<EventGameStart>(OnMapStart);
-    */
+    // _roundService.Start(parent);
   }
 
   public IRoundService GetRoundService() { return _roundService; }

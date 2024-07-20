@@ -5,6 +5,7 @@ using CounterStrikeSharp.API.Modules.Entities.Constants;
 using CounterStrikeSharp.API.Modules.Memory;
 using CounterStrikeSharp.API.Modules.Memory.DynamicFunctions;
 using CounterStrikeSharp.API.Modules.Timers;
+using TTT.Public.Behaviors;
 using TTT.Public.Extensions;
 using TTT.Public.Formatting;
 using TTT.Public.Mod.Role;
@@ -12,7 +13,8 @@ using TTT.Public.Mod.Round;
 
 namespace TTT.Round;
 
-public class RoundBehavior(IRoleService _roleService) : IRoundService {
+public class RoundBehavior(IRoleService _roleService)
+  : IRoundService, IPluginBehavior {
   private Round? _round;
   private int _roundId = 1;
   private RoundStatus _roundStatus = RoundStatus.Paused;
@@ -23,6 +25,11 @@ public class RoundBehavior(IRoleService _roleService) : IRoundService {
     VirtualFunctions.CBaseEntity_TakeDamageOldFunc.Hook(BlockDamage,
       HookMode.Pre);
     plugin.AddTimer(3, EndRound, TimerFlags.REPEAT);
+  }
+
+  public void Dispose() {
+    VirtualFunctions.CBaseEntity_TakeDamageOldFunc.Unhook(BlockDamage,
+      HookMode.Pre);
   }
 
   public RoundStatus GetRoundStatus() { return _roundStatus; }
