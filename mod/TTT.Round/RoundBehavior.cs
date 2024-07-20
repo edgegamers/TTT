@@ -75,10 +75,7 @@ public class RoundBehavior(IRoleService _roleService) : IRoundService {
   }
 
   public void ForceStart() {
-    foreach (var player in Utilities.GetPlayers()
-     .Where(player => player.IsReal())
-     .Where(player => player.IsReal())
-     .ToList())
+    foreach (var player in Utilities.GetPlayers().ToList())
       player.VoiceFlags = VoiceFlags.Normal;
     _round!.Start();
     ServerExtensions.GetGameRules().RoundTime = 360;
@@ -123,7 +120,6 @@ public class RoundBehavior(IRoleService _roleService) : IRoundService {
     OnTeamJoin(CCSPlayerController? executor, CommandInfo info) {
     if (_roundStatus != RoundStatus.Started) return HookResult.Continue;
     if (executor == null) return HookResult.Continue;
-    if (!executor.IsReal()) return HookResult.Continue;
     if (_roleService.GetRole(executor) != Role.Unassigned)
       return HookResult.Continue;
     Server.NextFrame(() => executor.CommitSuicide(false, true));

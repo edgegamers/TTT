@@ -18,7 +18,7 @@ public class DetectiveManager(IPlayerService roleService)
   public void Start(BasePlugin parent) {
     parent.RegisterListener<Listeners.OnTick>(() => {
       foreach (var player in Utilities.GetPlayers()
-       .Where(player => player.IsValid && player.IsReal())
+       .Where(player => player is { IsValid: true, IsBot: false })
        .Where(player => (player.Buttons & PlayerButtons.Use) != 0))
         OnPlayerUse(player);
     });

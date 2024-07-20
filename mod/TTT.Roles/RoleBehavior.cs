@@ -44,7 +44,6 @@ public class RoleBehavior : IRoleService, IPluginBehavior {
 
   public void AddRoles() {
     var eligible = Utilities.GetPlayers()
-     .Where(player => player.IsReal())
      .Where(player => player.Team is not (CsTeam.Spectator or CsTeam.None))
      .ToList();
 
@@ -149,15 +148,10 @@ public class RoleBehavior : IRoleService, IPluginBehavior {
     OnRoundStart(EventRoundFreezeEnd @event, GameEventInfo info) {
     _roundService.SetRoundStatus(RoundStatus.Waiting);
     foreach (var player in Utilities.GetPlayers()
-     .Where(player => player.IsReal() && player.Team != CsTeam.None
-        || player.Team != CsTeam.Spectator)) {
+     .Where(player
+        => player.Team != CsTeam.None && player.Team != CsTeam.Spectator)) {
       player.RemoveWeapons();
-      if (!string.IsNullOrEmpty("weapon_glock"))
-        player.GiveNamedItem("weapon_glock");
-
-      if (!string.IsNullOrEmpty(string.Empty))
-        player.GiveNamedItem(string.Empty);
-
+      player.GiveNamedItem("weapon_glock");
       player.GiveNamedItem("weapon_knife");
       service.GetPlayer(player).ModifyKarma();
     }
@@ -169,8 +163,8 @@ public class RoleBehavior : IRoleService, IPluginBehavior {
   public HookResult OnPlayerConnect(EventPlayerConnectFull @event,
     GameEventInfo info) {
     if (Utilities.GetPlayers()
-     .Count(player => player.IsReal() && player.Team != CsTeam.None
-        || player.Team == CsTeam.Spectator) < 3)
+     .Count(player => player.Team != CsTeam.None
+        && player.Team != CsTeam.Spectator) < 3)
       _roundService.ForceEnd();
 
     return HookResult.Continue;
@@ -219,10 +213,7 @@ public class RoleBehavior : IRoleService, IPluginBehavior {
 
   [GameEventHandler]
   public HookResult OnRoundEnd(EventRoundEnd @event, GameEventInfo info) {
-    var players = Utilities.GetPlayers()
-     .Where(player => player.IsValid)
-     .Where(player => player.IsReal())
-     .ToList();
+    var players = Utilities.GetPlayers().ToList();
 
     foreach (var player in players)
       player.PrintToCenter(GetWinner().FormatStringFullAfter("s has won!"));
@@ -250,12 +241,10 @@ public class RoleBehavior : IRoleService, IPluginBehavior {
   }
 
   private Role GetWinner() {
-    return _traitorsLeft == 0 ? Role.Traitor : Role.Innocent;
+    return _traitorsLeft > 0 ? Role.Traitor : Role.Innocent;
   }
 
   public void SetColor(CCSPlayerController player) {
-    if (!player.IsReal()) return;
-
     var pawn = player.PlayerPawn.Value;
 
     if (pawn == null || !pawn.IsValid) return;
@@ -267,15 +256,12 @@ public class RoleBehavior : IRoleService, IPluginBehavior {
   }
 
   public void RemoveColor(CCSPlayerController player) {
-    if (!player.IsReal()) return;
-
     var pawn = player.PlayerPawn.Value;
 
     if (pawn == null || !pawn.IsValid) return;
 
     pawn.RenderMode = RenderMode_t.kRenderTransColor;
     pawn.Render     = Color.FromArgb(254, 255, 255, 255);
-
 
     Utilities.SetStateChanged(pawn, "CBaseModelEntity", "m_clrRender");
   }

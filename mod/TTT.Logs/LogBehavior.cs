@@ -18,8 +18,7 @@ public class LogBehavior : ILogService, IPluginBehavior {
 
   public bool PrintLogs(int round) {
     if (_logs.ContainsKey(round)) return false;
-    foreach (var player in Utilities.GetPlayers().Where(plr => plr.IsReal()))
-      PrintToPlayer(player, round);
+    foreach (var player in Utilities.GetPlayers()) PrintToPlayer(player, round);
 
     PrintToConsole(round);
     return true;

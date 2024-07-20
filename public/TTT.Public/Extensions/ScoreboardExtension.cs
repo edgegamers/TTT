@@ -8,7 +8,6 @@ namespace TTT.Round;
 public static class ScoreboardExtension {
   public static void ModifyScoreBoard(this CCSPlayerController? player) {
     if (player == null) return;
-    if (!player.IsReal()) return;
     var actionService = player.ActionTrackingServices;
     if (actionService == null) return;
 

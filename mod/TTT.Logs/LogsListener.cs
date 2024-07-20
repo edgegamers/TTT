@@ -17,8 +17,7 @@ public class LogsListener(ILogService logService, IPlayerService playerService)
   public HookResult OnPlayerDamage(EventPlayerHurt @event, GameEventInfo info) {
     var attackedPlayer = @event.Userid;
 
-    if (attackedPlayer == null || !attackedPlayer.IsReal())
-      return HookResult.Continue;
+    if (attackedPlayer == null) return HookResult.Continue;
 
     var attackedRole = playerService.GetPlayer(attackedPlayer).PlayerRole();
 
@@ -39,12 +38,11 @@ public class LogsListener(ILogService logService, IPlayerService playerService)
     var killedPlayer = @event.Userid;
     var killer       = @event.Attacker;
 
-    if (killedPlayer == null || !killedPlayer.IsReal())
-      return HookResult.Continue;
+    if (killedPlayer == null) return HookResult.Continue;
 
     var killedRole = playerService.GetPlayer(killedPlayer).PlayerRole();
 
-    if (killer == null || !killer.IsReal()) {
+    if (killer == null) {
       logService.AddLog(new DeathAction(
         new Tuple<CCSPlayerController, Role>(killedPlayer, killedRole)));
       return HookResult.Continue;

@@ -23,10 +23,7 @@ public class Round {
   public void Tick() {
     _graceTime--;
 
-    var players = Utilities.GetPlayers()
-     .Where(player => player.IsValid)
-     .Where(player => player.IsReal())
-     .ToList();
+    var players = Utilities.GetPlayers().ToList();
 
     var formattedColor =
       $"<font color=\"#{Color.Green.R:X2}{Color.Green.G:X2}{Color.Green.B:X2}\">";
@@ -42,7 +39,6 @@ public class Round {
 
   public void Start() {
     foreach (var player in Utilities.GetPlayers()
-     .Where(player => player.IsReal())
      .Where(player => !player.PawnIsAlive)
      .Where(player
         => player.Team is CsTeam.Terrorist or CsTeam.CounterTerrorist))

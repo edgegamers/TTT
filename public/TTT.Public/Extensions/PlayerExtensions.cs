@@ -77,14 +77,15 @@ public static class PlayerExtensions {
   }
 
 
-  public static bool IsReal(this CCSPlayerController player) {
+  public static bool IsReal(this CCSPlayerController player, bool bot = true) {
     //  Do nothing else before this:
     //  Verifies the handle points to an entity within the global entity list.
     if (!player.IsValid) return false;
 
     if (player.Connected != PlayerConnectedState.PlayerConnected) return false;
 
-    if (player.IsBot || player.IsHLTV) return false;
+    if (player.IsBot) return bot;
+    if (player.IsHLTV) return false;
 
     return true;
   }

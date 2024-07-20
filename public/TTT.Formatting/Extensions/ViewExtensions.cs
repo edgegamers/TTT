@@ -45,7 +45,7 @@ public static class ViewExtensions {
 
   public static IView ToPlayerConsole(this IView view,
     CCSPlayerController player) {
-    if (!player.IsReal() || player.IsBot) return view;
+    if (!player.IsReal(false)) return view;
 
     var writer = view.ToWriter();
 
@@ -56,7 +56,7 @@ public static class ViewExtensions {
 
   public static IView
     ToPlayerChat(this IView view, CCSPlayerController player) {
-    if (!player.IsReal() || player.IsBot) return view;
+    if (!player.IsReal(false)) return view;
 
     var writer = view.ToWriter();
 
@@ -67,7 +67,7 @@ public static class ViewExtensions {
 
   public static IView ToPlayerCenter(this IView view,
     CCSPlayerController player) {
-    if (!player.IsReal() || player.IsBot) return view;
+    if (!player.IsReal(false)) return view;
 
     var writer = view.ToWriter();
     var merged = string.Join('\n', writer.Plain);
@@ -79,7 +79,7 @@ public static class ViewExtensions {
 
   public static IView ToPlayerCenterHtml(this IView view,
     CCSPlayerController player) {
-    if (!player.IsReal() || player.IsBot) return view;
+    if (!player.IsReal(false)) return view;
 
     var writer = view.ToWriter();
     var merged = string.Join('\n', writer.Panorama);

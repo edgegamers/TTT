@@ -23,8 +23,6 @@ public class AntiBlockManager : IPluginBehavior {
 
     var player = @event.Userid;
 
-    if (!player.IsReal()) return HookResult.Continue;
-
     if (!player.PlayerPawn.IsValid) return HookResult.Continue;
 
     var pawn = player.PlayerPawn;
