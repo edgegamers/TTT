@@ -11,9 +11,9 @@ namespace TTT;
 
 public class TTTServiceCollection : IPluginServiceCollection<TTTPlugin> {
   public void ConfigureServices(IServiceCollection serviceCollection) {
+    serviceCollection.AddTTTRoles();
     serviceCollection.AddRoundService();
     serviceCollection.AddPlayerService();
-    serviceCollection.AddTTTRoles();
     serviceCollection.AddDetectiveBehavior();
     serviceCollection.AddLogsService();
     serviceCollection.AddManagerService();
