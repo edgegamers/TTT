@@ -27,11 +27,12 @@ public class LogsCommand(ILogService service) : IPluginBehavior {
 
     var roundId = service.GetCurrentRound();
 
-    if (string.IsNullOrEmpty(roundIdString)
-      && !int.TryParse(roundIdString, out roundId)) {
-      info.ReplyToCommand(
-        StringUtils.FormatTTT("Invalid round id, /logs <roundId>"));
-      return;
+    if (info.ArgCount == 2) {
+      if (!int.TryParse(info.GetArg(1), out roundId)) {
+        info.ReplyToCommand(
+          StringUtils.FormatTTT("Invalid round id, /logs <roundId>"));
+        return;
+      }
     }
 
     if (roundId <= 0) {

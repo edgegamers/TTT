@@ -9,22 +9,20 @@ using Microsoft.Extensions.DependencyInjection;
 using TTT.Public.Behaviors;
 using TTT.Public.Extensions;
 using TTT.Public.Formatting;
+using TTT.Public.Mod.Logs;
 using TTT.Public.Mod.Role;
 using TTT.Public.Mod.Round;
 
 namespace TTT.Round;
 
-public class RoundBehavior : IRoundService, IPluginBehavior {
+public class RoundBehavior(IServiceProvider provider, ILogService logs)
+  : IRoundService, IPluginBehavior {
   private Round? _round;
-  private int _roundId = 1;
   private RoundStatus _roundStatus = RoundStatus.Paused;
-  private readonly IServiceProvider _provider;
   private IRoleService _roleService = null!;
 
-  public RoundBehavior(IServiceProvider provider) { _provider = provider; }
-
   public void Start(BasePlugin plugin) {
-    _roleService = _provider.GetRequiredService<IRoleService>();
+    _roleService = provider.GetRequiredService<IRoleService>();
     plugin.RegisterListener<Listeners.OnTick>(TickWaiting);
     plugin.AddCommandListener("jointeam", OnTeamJoin);
     VirtualFunctions.CBaseEntity_TakeDamageOldFunc.Hook(BlockDamage,
@@ -45,16 +43,11 @@ public class RoundBehavior : IRoundService, IPluginBehavior {
         ForceEnd();
         break;
       case RoundStatus.Waiting:
-        _round = new Round(_roleService, null, _roundId);
+        _round = new Round(_roleService, null, logs.CreateRound());
         break;
       case RoundStatus.Started:
         ForceStart();
         break;
-      case RoundStatus.Paused:
-        break;
-      default:
-        throw new ArgumentOutOfRangeException(nameof(roundStatus), roundStatus,
-          "Invalid round status.");
     }
 
     _roundStatus = roundStatus;
@@ -62,7 +55,7 @@ public class RoundBehavior : IRoundService, IPluginBehavior {
 
   public void TickWaiting() {
     if (_round == null) {
-      _round = new Round(_roleService, null, _roundId);
+      _round = new Round(_roleService, null, logs.CreateRound());
       return;
     }
 
@@ -72,14 +65,14 @@ public class RoundBehavior : IRoundService, IPluginBehavior {
 
     if (_round.GraceTime() != 0) return;
 
-
     if (Utilities.GetPlayers()
      .Where(player => player is { IsValid: true, PawnIsAlive: true })
      .ToList()
      .Count <= 2) {
       Server.PrintToChatAll(StringUtils.FormatTTT(
-        "Not enough players to start the round. Round has been ended."));
-      _roundStatus = RoundStatus.Paused;
+        "Not enough players to start the round. We will wait for more players."));
+
+      SetRoundStatus(RoundStatus.Paused);
       return;
     }
 
@@ -136,11 +129,6 @@ public class RoundBehavior : IRoundService, IPluginBehavior {
       return HookResult.Continue;
     Server.NextFrame(() => executor.CommitSuicide(false, true));
 
-    return HookResult.Continue;
-  }
-
-  private HookResult OnRoundEnd(EventRoundEnd _, GameEventInfo __) {
-    _roundId++;
     return HookResult.Continue;
   }
 }

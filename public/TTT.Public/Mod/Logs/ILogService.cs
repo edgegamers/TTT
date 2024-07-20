@@ -9,5 +9,5 @@ public interface ILogService {
   bool PrintToPlayer(CCSPlayerController player, int round);
   bool PrintToConsole(int round);
   IRoundLogs GetLogs(int round);
-  void CreateRound(int round);
+  int CreateRound();
 }

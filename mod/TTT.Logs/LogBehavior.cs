@@ -38,15 +38,13 @@ public class LogBehavior : ILogService, IPluginBehavior {
 
   public IRoundLogs GetLogs(int round) { return _logs[round]; }
 
-  public void CreateRound(int round) { _logs.Add(round, new RoundLog(round)); }
+  public int CreateRound() {
+    _round        += 1;
+    _logs[_round] =  new RoundLog(_round);
+    return _round;
+  }
 
   public void Start(BasePlugin plugin) { }
-
-  [GameEventHandler]
-  public HookResult OnRoundStart(EventRoundStart _, GameEventInfo __) {
-    CreateRound(_round++);
-    return HookResult.Continue;
-  }
 
   [GameEventHandler]
   public HookResult OnRoundEnd(EventRoundEnd _, GameEventInfo __) {
