@@ -5,11 +5,13 @@ using TTT.Logs;
 using TTT.Manager;
 using TTT.Player;
 using TTT.Roles;
+using TTT.Round;
 
 namespace TTT;
 
 public class TTTServiceCollection : IPluginServiceCollection<TTTPlugin> {
   public void ConfigureServices(IServiceCollection serviceCollection) {
+    serviceCollection.AddRoundService();
     serviceCollection.AddPlayerService();
     serviceCollection.AddTTTRoles();
     serviceCollection.AddDetectiveBehavior();
