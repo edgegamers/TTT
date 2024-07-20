@@ -39,7 +39,11 @@ public class PlayerBehavior : IPlayerService, IPluginBehavior {
   public List<GamePlayer> Players() { return _players.Values.ToList(); }
 
   public GamePlayer GetPlayer(CCSPlayerController player) {
-    return _players[player];
+    if (_players.TryGetValue(player, out var value)) return value;
+
+    var result = new GamePlayer(Role.Unassigned, 0, 110, player.UserId.Value);
+    _players.Add(player, result);
+    return result;
   }
 
   public void RemovePlayer(CCSPlayerController player) {
