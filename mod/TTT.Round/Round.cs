@@ -11,12 +11,13 @@ public class Round {
   private readonly RoundConfig? _config;
   private readonly IRoleService _roleService;
   private readonly int _roundId;
-  private float _graceTime = 20 * 64;
+  // TODO: Use RoundConfig
+  // TODO: Revert to 20
+  private float _graceTime = 5 * 64;
 
   public Round(IRoleService roleService, RoundConfig? config, int roundId) {
     _roleService = roleService;
     _config      = config;
-    _graceTime   = 20 * 64;
     _roundId     = roundId;
   }
 

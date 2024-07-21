@@ -3,6 +3,7 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes.Registration;
 using CounterStrikeSharp.API.Modules.Entities.Constants;
+using CounterStrikeSharp.API.Modules.Memory;
 using CounterStrikeSharp.API.Modules.Utils;
 using TTT.Public.Behaviors;
 using TTT.Public.Extensions;
@@ -22,7 +23,8 @@ public class RoleBehavior : IRoleService, IPluginBehavior {
   private readonly IRoundService _roundService;
   private int _traitorsLeft;
 
-  public RoleBehavior(IPlayerService playerService, IRoundService roundService) {
+  public RoleBehavior(IPlayerService playerService,
+    IRoundService roundService) {
     _roundService = roundService;
     service       = playerService;
   }
@@ -36,7 +38,7 @@ public class RoleBehavior : IRoleService, IPluginBehavior {
 
   public void AddRoles() {
     var eligible = Utilities.GetPlayers()
-     .Where(player => player.Team is not (CsTeam.Spectator or CsTeam.None))
+     .Where(player => player.Team is not CsTeam.None)
      .ToList();
 
     var traitorCount   = (int)Math.Floor(Convert.ToDouble(eligible.Count / 3));
@@ -90,7 +92,7 @@ public class RoleBehavior : IRoleService, IPluginBehavior {
 
   public void AddTraitor(CCSPlayerController player) {
     service.GetPlayer(player).SetPlayerRole(Role.Traitor);
-    player.SwitchTeam(CsTeam.Terrorist);
+    forceSpec(player);
     player.PrintToCenter(
       Role.Traitor.FormatStringFullBefore("You are now a(n)"));
     player.PrintToChat(Role.Traitor.FormatStringFullBefore("You are now a(n)"));
@@ -112,10 +114,26 @@ public class RoleBehavior : IRoleService, IPluginBehavior {
       service.GetPlayer(player).SetPlayerRole(Role.Innocent);
       player.PrintToCenter(
         Role.Innocent.FormatStringFullBefore("You are now an"));
-      player.SwitchTeam(CsTeam.Terrorist);
+      // player.SwitchTeam(CsTeam.Spectator);
+      forceSpec(player);
       ModelHandler.SetModelNextServerFrame(player,
         ModelHandler.ModelPathTmPhoenix);
     }
+  }
+
+  private void forceSpec(CCSPlayerController player) {
+    var pawn = player.Pawn.Value;
+    if (pawn == null) return;
+
+    var loc = pawn.AbsOrigin;
+    player.ChangeTeam(CsTeam.Spectator);
+    player.Respawn();
+    player.Teleport(loc);
+
+    pawn.RenderMode = RenderMode_t.kRenderTransColor;
+    pawn.Render     = Color.FromArgb(254, 255, 255, 255);
+    ModelHandler.SetModelNextServerFrame(player,
+      ModelHandler.ModelPathTmPhoenix);
   }
 
   public bool IsDetective(CCSPlayerController player) {
@@ -140,8 +158,7 @@ public class RoleBehavior : IRoleService, IPluginBehavior {
     OnRoundStart(EventRoundFreezeEnd @event, GameEventInfo info) {
     _roundService.SetRoundStatus(RoundStatus.Waiting);
     foreach (var player in Utilities.GetPlayers()
-     .Where(player
-        => player.Team != CsTeam.None && player.Team != CsTeam.Spectator)) {
+     .Where(player => player.Team != CsTeam.None)) {
       player.RemoveWeapons();
       player.GiveNamedItem("weapon_glock");
       player.GiveNamedItem("weapon_knife");
