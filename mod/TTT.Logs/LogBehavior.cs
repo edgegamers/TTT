@@ -17,7 +17,7 @@ public class LogBehavior : ILogService, IPluginBehavior {
   public void AddLog(Action action) { _logs[_round].AddLog(action); }
 
   public bool PrintLogs(int round) {
-    if (_logs.ContainsKey(round)) return false;
+    if (!_logs.ContainsKey(round)) return false;
     foreach (var player in Utilities.GetPlayers()) PrintToPlayer(player, round);
 
     PrintToConsole(round);
