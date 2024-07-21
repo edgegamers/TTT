@@ -15,11 +15,11 @@ public class LogsListener(ILogService logService, IPlayerService playerService)
 
   [GameEventHandler]
   public HookResult OnPlayerDamage(EventPlayerHurt @event, GameEventInfo info) {
-    var attackedPlayer = @event.Userid;
+    var victim = @event.Userid;
 
-    if (attackedPlayer == null) return HookResult.Continue;
+    if (victim == null) return HookResult.Continue;
 
-    var attackedRole = playerService.GetPlayer(attackedPlayer).PlayerRole();
+    var attackedRole = playerService.GetPlayer(victim).PlayerRole();
 
     var attacker = @event.Attacker == null ?
       null :
@@ -27,7 +27,7 @@ public class LogsListener(ILogService logService, IPlayerService playerService)
         playerService.GetPlayer(@event.Attacker).PlayerRole());
 
     logService.AddLog(new DamageAction(attacker,
-      new Tuple<CCSPlayerController, Role>(attackedPlayer, attackedRole),
+      new Tuple<CCSPlayerController, Role>(victim, attackedRole),
       @event.DmgHealth, ServerExtensions.GetGameRules().RoundTime));
 
     return HookResult.Continue;
@@ -35,24 +35,24 @@ public class LogsListener(ILogService logService, IPlayerService playerService)
 
   [GameEventHandler]
   public HookResult OnPlayerDeath(EventPlayerDeath @event, GameEventInfo info) {
-    var killedPlayer = @event.Userid;
-    var killer       = @event.Attacker;
+    var victim = @event.Userid;
+    var killer = @event.Attacker;
 
-    if (killedPlayer == null) return HookResult.Continue;
+    if (victim == null) return HookResult.Continue;
 
-    var killedRole = playerService.GetPlayer(killedPlayer).PlayerRole();
+    var victimRole = playerService.GetPlayer(victim).PlayerRole();
 
     if (killer == null) {
       logService.AddLog(new DeathAction(
-        new Tuple<CCSPlayerController, Role>(killedPlayer, killedRole)));
+        new Tuple<CCSPlayerController, Role>(victim, victimRole)));
       return HookResult.Continue;
     }
 
     var killerRole = playerService.GetPlayer(killer).PlayerRole();
 
     logService.AddLog(new KillAction(
-      new Tuple<CCSPlayerController, Role>(killedPlayer, killedRole),
-      new Tuple<CCSPlayerController, Role>(killer, killerRole)));
+      new Tuple<CCSPlayerController, Role>(killer, killerRole),
+      new Tuple<CCSPlayerController, Role>(victim, victimRole)));
     return HookResult.Continue;
   }
 }
