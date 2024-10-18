@@ -1,4 +1,3 @@
-﻿
 # Repository build files
 build/
 bin/
@@ -10,3 +9,5 @@ Release/
 # IDE files
 .idea/
 .vs/
+/mod/TTT.Detective/bin
+mod/TTT.Shop/TTT.Shop.csproj
