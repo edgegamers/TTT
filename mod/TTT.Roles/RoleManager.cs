@@ -67,7 +67,7 @@ public class RoleManager : PlayerHandler, IRoleService, IPluginBehavior
                 
             }
 
-            if (info.BitsDamageType is not 256) return HookResult.Continue;
+            if (info.BitsDamageType != DamageTypes_t.DMG_SHOCK) return HookResult.Continue;
             if (attacker == null) return HookResult.Continue;
                 
             info.Damage = 0;
