@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿using System.Collections;
+using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
 using CounterStrikeSharp.API;
@@ -29,6 +30,8 @@ public class RoleManager : PlayerHandler, IRoleService, IPluginBehavior
     private int _traitorsLeft;
     private InfoManager _infoManager;
     private MuteManager _muteManager;
+
+    private List<CBaseModelEntity> _glowingEntities = [];
     
     public void Start(BasePlugin parent)
     {
@@ -46,6 +49,8 @@ public class RoleManager : PlayerHandler, IRoleService, IPluginBehavior
         parent.RegisterEventHandler<EventPlayerDeath>(OnPlayerDeath, HookMode.Pre);
         parent.RegisterEventHandler<EventGameStart>(OnMapStart);
         parent.RegisterEventHandler<EventPlayerSpawn>(Event_PlayerSpawn, HookMode.Post);
+        
+        parent.RegisterListener<Listeners.CheckTransmit>(RegisterSetColor);
 
         VirtualFunctions.CBaseEntity_TakeDamageOldFunc.Hook(hook =>
         {
@@ -171,6 +176,7 @@ public class RoleManager : PlayerHandler, IRoleService, IPluginBehavior
 
         Server.NextFrame(Clear);
         _muteManager.UnMuteAll();
+        RemoveGlow();
         return HookResult.Continue;
     }
 
@@ -240,6 +246,32 @@ public class RoleManager : PlayerHandler, IRoleService, IPluginBehavior
         return GetPlayer(player).PlayerRole();
     }
 
+    private void RemoveGlow()
+    {
+        foreach (var glowEnt in _glowingEntities)
+        {
+            glowEnt.Remove();
+        }
+        _glowingEntities.Clear();
+    }
+
+    private void RegisterSetColor(CCheckTransmitInfoList infoList)
+    {
+        foreach (var (info, player) in infoList) 
+        { 
+            if (player == null) 
+                continue;
+                
+            if (IsTraitor(player)) 
+                continue;
+            
+            foreach (var model in _glowingEntities) 
+            { 
+                info.TransmitEntities.Remove(model); 
+            }
+        }
+    }
+    
     public void AddTraitor(CCSPlayerController player)
     {
         GetPlayer(player).SetPlayerRole(Role.Traitor);
@@ -464,6 +496,39 @@ public class RoleManager : PlayerHandler, IRoleService, IPluginBehavior
 
         // any further validity is up to the caller
         return player_pawn.OriginalController.Value;
+    }
+    
+    private void SetGlowing(CCSPlayerPawn pawn)
+    {
+        CBaseModelEntity? modelGlow = Utilities.CreateEntityByName<CBaseModelEntity>("prop_dynamic");
+        CBaseModelEntity? modelRelay = Utilities.CreateEntityByName<CBaseModelEntity>("prop_dynamic");
+        if (modelGlow == null || modelRelay == null)
+        {
+            return;
+        }
+
+        string modelName = pawn.CBodyComponent!.SceneNode!.GetSkeletonInstance().ModelState.ModelName;
+
+        modelRelay.SetModel(modelName);
+        modelRelay.Spawnflags = 256u;
+        modelRelay.RenderMode = RenderMode_t.kRenderNone;
+        modelRelay.DispatchSpawn();
+
+        modelGlow.SetModel(modelName);
+        modelGlow.Spawnflags = 256u;
+        modelGlow.DispatchSpawn();
+
+        modelGlow.Glow.GlowColorOverride = Color.Red;
+        modelGlow.Glow.GlowRange = 5000;
+        modelGlow.Glow.GlowTeam = -1;
+        modelGlow.Glow.GlowType = 3;
+        modelGlow.Glow.GlowRangeMin = 100;
+        
+        modelRelay.AcceptInput("FollowEntity", pawn, modelRelay, "!activator");
+        modelGlow.AcceptInput("FollowEntity", modelRelay, modelGlow, "!activator");
+        
+        _glowingEntities.Add(modelGlow);
+        _glowingEntities.Add(modelRelay);
     }
 }
 
