@@ -29,12 +29,14 @@ public class RoleManager : PlayerHandler, IRoleService, IPluginBehavior
     private int _traitorsLeft;
     private InfoManager _infoManager;
     private MuteManager _muteManager;
+    private EntityGlowManager _entityGlowManager;
     
     public void Start(BasePlugin parent)
     {
         _roundService = new RoundManager(this, parent);
         _infoManager = new InfoManager(this, _roundService, parent);
         _muteManager = new MuteManager(parent);
+        _entityGlowManager = new EntityGlowManager(parent);
         ModelHandler.RegisterListener(parent);
         //ShopManager.Register(parent, this); //disabled until items are implemented.
         //CreditManager.Register(parent, this);
@@ -171,6 +173,7 @@ public class RoleManager : PlayerHandler, IRoleService, IPluginBehavior
 
         Server.NextFrame(Clear);
         _muteManager.UnMuteAll();
+        _entityGlowManager.Dispose();
         return HookResult.Continue;
     }
 
@@ -217,6 +220,7 @@ public class RoleManager : PlayerHandler, IRoleService, IPluginBehavior
         }
 
         AddInnocents(eligible);
+        _entityGlowManager.SetTraitors(GetTraitors().ToList());
     }
 
     public ISet<CCSPlayerController> GetTraitors()
