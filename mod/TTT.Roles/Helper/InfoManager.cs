@@ -27,8 +27,6 @@ public class InfoManager
     {
         _roleService = roleService;
         _manager = manager;
-        plugin.RegisterListener<Listeners.OnTick>(OnTick);
-        plugin.AddTimer(0.3f, OnTickAll, TimerFlags.REPEAT);
         plugin.AddTimer(0.1f, OnTickScoreboard, TimerFlags.REPEAT);
 
         plugin.RegisterEventHandler<EventSpecTargetUpdated>(OnPlayerSpectateChange);
@@ -59,88 +57,6 @@ public class InfoManager
         }
     }
     
-
-    public void OnTick()
-    {
-        foreach (var gamePlayer in _roleService.Players())
-        {
-            if (_manager.GetRoundStatus() != RoundStatus.Started) return;
-
-            var player = gamePlayer.Player();
-
-            if (player == null) continue;
-            if (!player.IsReal()) continue;
-            
-            var playerRole = gamePlayer.PlayerRole();
-
-            if (playerRole == Role.Unassigned) continue;
-            if (gamePlayer.ShopOpen()) continue;
-
-            if (!player.PawnIsAlive && AdminManager.PlayerHasPermissions(player, "@css/kick"))
-            {
-                if (player.ObserverPawn.Value == null || !player.ObserverPawn.Value.IsValid) continue;
-                if (player.ObserverPawn.Value.ObserverServices?.ObserverTarget.Value is null) continue;
-                var target = player.ObserverPawn.Value.ObserverServices.ObserverTarget.Value?.As<CCSPlayerController>();
-                if (target == null)
-                {
-                    Server.NextFrame(() =>
-                        player.PrintToCenterHtml(
-                            $"<font class='fontsize=m' color='yellow'>Your Role: {playerRole.GetCenterRole()}"));   
-                }
-                else
-                {
-                    Server.NextFrame(() => player.PrintToCenterHtml(
-                        $"<font class='fontsize=m' color='yellow'>Your Role: {playerRole.GetCenterRole()} <br>"
-                        + $"<font class='fontsize=m' color='yellow'>{target.PlayerName}'s Role: {_roleService.GetRole(target).GetCenterRole()}"));
-                }
-                
-                continue;
-            }
-
-            if (!_playerLookAtRole.TryGetValue(player, out var value))
-            {
-                Server.NextFrame(() =>
-                    player.PrintToCenterHtml(
-                        $"<font class='fontsize=m' color='yellow'>Your Role: {playerRole.GetCenterRole()}"));
-                continue;
-            }
-
-            if (!value.Item1.IsReal()) continue;
-
-            if (value.Item2 == playerRole || playerRole == Role.Traitor || value.Item2 == Role.Detective)
-            {
-                Server.NextFrame(() => player.PrintToCenterHtml(
-                    $"<font class='fontsize=m' color='yellow'>Your Role: {playerRole.GetCenterRole()} <br>"
-                    + $"<font class='fontsize=m' color='yellow'>{value.Item1.PlayerName}'s Role: {value.Item2.GetCenterRole()}"));
-            }
-
-
-            if (playerRole != Role.Innocent && (value.Item2 != Role.Traitor || playerRole != Role.Detective)) continue;
-            
-            Server.NextFrame(() => player.PrintToCenterHtml(
-                $"<font class='fontsize=m' color='yellow'>Your Role: {playerRole.GetCenterRole()} <br>"
-                + $"<font class='fontsize=m' color='yellow'>{value.Item1.PlayerName}'s Role: {Role.Unassigned.GetCenterRole()}"));
-        }
-    }
-
-    public void OnTickAll()
-    {
-        var players = _roleService.GetPlayers().Keys;
-        
-        _playerLookAtRole.Clear();
-        
-        foreach (var player in players)
-        { 
-            if (!player.IsReal()) continue;
-            
-            var target = player.GetClientPlayerAimTarget();
-            
-            if (target == null) continue;
-            if (!target.IsReal()) continue;
-            
-            RegisterLookAtRole(player, new Tuple<CCSPlayerController, Role>(target, _roleService.GetRole(target)));
-        }
-    }
 
     [GameEventHandler]
     private HookResult OnPlayerSpectateChange(EventSpecTargetUpdated @event, GameEventInfo info)
