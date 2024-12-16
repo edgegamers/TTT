@@ -2,7 +2,9 @@
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes.Registration;
 using CounterStrikeSharp.API.Modules.Memory;
+using CounterStrikeSharp.API.Modules.Memory.DynamicFunctions;
 using TTT.Player;
+using TTT.Public.Action;
 using TTT.Public.Behaviors;
 using TTT.Public.Extensions;
 using TTT.Public.Formatting;
@@ -29,27 +31,49 @@ public class DetectiveManager : IDetectiveService, IPluginBehavior
                          .Where(player => (player.Buttons & PlayerButtons.Use) != 0)) OnPlayerUse(player);
         });
 
-        
-        /**
-        VirtualFunctions.CBaseEntity_TakeDamageOldFunc.Hook(hook =>
-        {
-            var info = hook.GetParam<CTakeDamageInfo>(1);
-            if (info.Attacker.Value == null || !info.Attacker.Value.IsValid) return HookResult.Continue;
-            var attacker = info.Attacker.Value.As<CCSPlayerController>();
-            if (attacker == hook.GetParam<CBaseEntity>(0)) return HookResult.Continue;
-            if (info.AmmoType is not TaserAmmoType) return HookResult.Continue;
+        VirtualFunctions.CBaseEntity_TakeDamageOldFunc.Hook(OnZeus, HookMode.Pre);
 
-            info.Damage = 1f;
-
-            if (!attacker.IsReal()) return HookResult.Continue;
-
-            var ammoType = info.AmmoType;
-
-            return HookResult.Changed;
-        }, HookMode.Pre);
-        */
     }
 
+
+    private HookResult OnZeus(DynamicHook hook)
+    {
+            var ent = hook.GetParam<CBaseEntity>(0);
+
+            var playerWhoWasDamaged = player(ent);
+
+            if (playerWhoWasDamaged == null) return HookResult.Continue;
+                 
+            var info = hook.GetParam<CTakeDamageInfo>(1);
+            
+            CCSPlayerController? attacker = null;
+            
+            if (info.Attacker.Value != null)
+            {
+                var playerWhoAttacked = info.Attacker.Value.As<CCSPlayerPawn>();
+
+                attacker = playerWhoAttacked.Controller.Value.As<CCSPlayerController>();   
+                
+            }
+
+            if (info.BitsDamageType != DamageTypes_t.DMG_SHOCK) return HookResult.Continue;
+            if (attacker == null) return HookResult.Continue;
+                
+            info.Damage = 0;
+                
+            var targetRole = _roleService.GetPlayer(playerWhoWasDamaged);
+            
+            Server.NextFrame(() =>
+            {
+                attacker.PrintToChat(
+                    StringUtils.FormatTTT(
+                        $"You tased player {playerWhoWasDamaged.PlayerName} they are a {targetRole.PlayerRole().FormatRoleFull()}"));
+            });
+            
+            //_roundService.GetLogsService().AddLog(new MiscAction("tased player " + targetRole.PlayerRole().FormatStringFullAfter(playerWhoWasDamaged.PlayerName), attacker));
+                
+            return HookResult.Stop;
+    }
     
     private void OnPlayerUse(CCSPlayerController player)
     {
@@ -91,5 +115,39 @@ public class DetectiveManager : IDetectiveService, IPluginBehavior
         player.SetFound(true);
         
         Server.NextFrame(() => { Server.PrintToChatAll(message); });
+    }
+    
+    private static CCSPlayerController? player(CEntityInstance? instance)
+    {
+        if (instance == null)
+        {
+            return null;
+        }
+
+        if (instance.DesignerName != "player")
+        {
+            return null;
+        }
+
+        // grab the pawn index
+        int player_index = (int)instance.Index;
+
+        // grab player controller from pawn
+        CCSPlayerPawn player_pawn = Utilities.GetEntityFromIndex<CCSPlayerPawn>(player_index);
+
+        // pawn valid
+        if (player_pawn == null || !player_pawn.IsValid)
+        {
+            return null;
+        }
+
+        // controller valid
+        if (player_pawn.OriginalController == null || !player_pawn.OriginalController.IsValid)
+        {
+            return null;
+        }
+
+        // any further validity is up to the caller
+        return player_pawn.OriginalController.Value;
     }
 }

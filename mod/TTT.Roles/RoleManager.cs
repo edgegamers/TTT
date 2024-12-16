@@ -29,12 +29,14 @@ public class RoleManager : PlayerHandler, IRoleService, IPluginBehavior
     private int _traitorsLeft;
     private InfoManager _infoManager;
     private MuteManager _muteManager;
+    private EntityGlowManager _entityGlowManager;
     
     public void Start(BasePlugin parent)
     {
         _roundService = new RoundManager(this, parent);
         _infoManager = new InfoManager(this, _roundService, parent);
         _muteManager = new MuteManager(parent);
+        _entityGlowManager = new EntityGlowManager(parent);
         ModelHandler.RegisterListener(parent);
         //ShopManager.Register(parent, this); //disabled until items are implemented.
         //CreditManager.Register(parent, this);
@@ -44,49 +46,6 @@ public class RoleManager : PlayerHandler, IRoleService, IPluginBehavior
         parent.RegisterEventHandler<EventRoundEnd>(OnRoundEnd);
         parent.RegisterEventHandler<EventPlayerDisconnect>(OnPlayerDisconnect);
         parent.RegisterEventHandler<EventPlayerDeath>(OnPlayerDeath, HookMode.Pre);
-        parent.RegisterEventHandler<EventGameStart>(OnMapStart);
-        parent.RegisterEventHandler<EventPlayerSpawn>(Event_PlayerSpawn, HookMode.Post);
-
-        VirtualFunctions.CBaseEntity_TakeDamageOldFunc.Hook(hook =>
-        {
-            var ent = hook.GetParam<CBaseEntity>(0);
-
-            var playerWhoWasDamaged = player(ent);
-
-            if (playerWhoWasDamaged == null) return HookResult.Continue;
-                 
-            var info = hook.GetParam<CTakeDamageInfo>(1);
-            
-            CCSPlayerController? attacker = null;
-            
-            if (info.Attacker.Value != null)
-            {
-                var playerWhoAttacked = info.Attacker.Value.As<CCSPlayerPawn>();
-
-                attacker = playerWhoAttacked.Controller.Value.As<CCSPlayerController>();   
-                
-            }
-
-            if (info.BitsDamageType != DamageTypes_t.DMG_SHOCK) return HookResult.Continue;
-            if (attacker == null) return HookResult.Continue;
-                
-            info.Damage = 0;
-                
-            var targetRole = GetPlayer(playerWhoWasDamaged);
-            
-            Server.NextFrame(() =>
-            {
-                attacker.PrintToChat(
-                    StringUtils.FormatTTT(
-                        $"You tased player {playerWhoWasDamaged.PlayerName} they are a {targetRole.PlayerRole().FormatRoleFull()}"));
-            });
-            
-            _roundService.GetLogsService().AddLog(new MiscAction("tased player " + targetRole.PlayerRole().FormatStringFullAfter(playerWhoWasDamaged.PlayerName), attacker));
-                
-            return HookResult.Stop;
-
-        }, HookMode.Pre);
-
     }
 
     [GameEventHandler]
@@ -114,12 +73,6 @@ public class RoleManager : PlayerHandler, IRoleService, IPluginBehavior
         
         return HookResult.Continue;
     }
-
-    [GameEventHandler]
-    private HookResult OnMapStart(EventGameStart @event, GameEventInfo info)
-    {
-        return HookResult.Continue;
-    }
     
     [GameEventHandler]
     private HookResult OnPlayerDeath(EventPlayerDeath @event, GameEventInfo info)
@@ -145,18 +98,7 @@ public class RoleManager : PlayerHandler, IRoleService, IPluginBehavior
 
         Server.NextFrame(() => playerWhoWasDamaged.CommitSuicide(false, true));
             
-        Server.NextFrame(() =>
-        {
-            Server.PrintToChatAll(StringUtils.FormatTTT($"{GetRole(playerWhoWasDamaged).FormatStringFullAfter(" has been found.")}"));
-            
-            if (attacker == playerWhoWasDamaged || attacker == null) return;
-            
-            attacker.ModifyScoreBoard();
-            
-            playerWhoWasDamaged.PrintToChat(StringUtils.FormatTTT(
-                $"You were killed by {GetRole(attacker).FormatStringFullAfter(" " + attacker.PlayerName)}."));
-            attacker.PrintToChat(StringUtils.FormatTTT($"You killed {GetRole(playerWhoWasDamaged).FormatStringFullAfter(" " + playerWhoWasDamaged.PlayerName)}."));
-        });
+        Server.NextFrame(() => SendDeathMessage(playerWhoWasDamaged, attacker));
         
         return HookResult.Continue;
     }
@@ -171,6 +113,7 @@ public class RoleManager : PlayerHandler, IRoleService, IPluginBehavior
 
         Server.NextFrame(Clear);
         _muteManager.UnMuteAll();
+        _entityGlowManager.Dispose();
         return HookResult.Continue;
     }
 
@@ -217,6 +160,7 @@ public class RoleManager : PlayerHandler, IRoleService, IPluginBehavior
         }
 
         AddInnocents(eligible);
+        _entityGlowManager.SetTraitors(GetTraitors().ToList());
     }
 
     public ISet<CCSPlayerController> GetTraitors()
@@ -285,232 +229,28 @@ public class RoleManager : PlayerHandler, IRoleService, IPluginBehavior
         _infoManager.Reset();
         foreach (var key in GetPlayers()) key.Value.SetPlayerRole(Role.Unassigned);
     }
-
-    public void ApplyColorFromRole(CCSPlayerController player, Role role)
-    {
-        switch (role)
-        {
-            case Role.Traitor:
-                ApplyTraitorColor(player);
-                break;
-            case Role.Detective:
-                ApplyDetectiveColor(player);
-                break;
-            case Role.Innocent:
-                ApplyInnocentColor(player);
-                break;
-            case Role.Unassigned:
-            default:
-                break;
-        }
-    }
     
     public bool IsInnocent(CCSPlayerController player)
     {
         return GetPlayer(player).PlayerRole() == Role.Innocent;
     }
 
-    private void SetColors()
-    {
-        foreach (var key in Players())
-        {
-            if (key.PlayerRole() != Role.Innocent) return;
-            ApplyInnocentColor(key.Player());
-        }
-    }
-
-    private void RemoveColors()
-    {
-        var players = Utilities.GetPlayers()
-            .Where(player => player.IsValid).ToList();
-
-        foreach (var player in players)
-        {
-            if (player.Pawn.Value == null) return;
-            player.Pawn.Value.RenderMode = RenderMode_t.kRenderTransColor;
-            player.Pawn.Value.Render =  Color.FromArgb(254, 255, 255, 255);
-            Utilities.SetStateChanged(player.Pawn.Value, "CBaseModelEntity", "m_clrRender");
-        }
-    }
-    
-    private void SetColorTeam(CBaseEntity entity, string className, string fieldName, Role role = Role.Innocent)
-    {
-        Guard.IsValidEntity(entity);
-
-        if (!Schema.IsSchemaFieldNetworked(className, fieldName))
-        {
-            Application.Instance.Logger.LogWarning("Field {ClassName}:{FieldName} is not networked, but SetStateChanged was called on it.", className, fieldName);
-            return;
-        }
-        
-        foreach (var player in GetPlayers().Values.Where(player => player.PlayerRole() == role))
-        {
-            Guard.IsValidEntity(player.Player());
-
-            var playerObj = player.Player();
-            
-            int offset = Schema.GetSchemaOffset(className, fieldName);
-
-            VirtualFunctions.StateChanged(entity.NetworkTransmitComponent.Handle, entity.Handle, offset, -1, (short)playerObj.Index);
-        }
-    }
-    
-    private void ApplyDetectiveColor(CCSPlayerController player)
-    {
-        if (!player.IsReal() || player.Pawn.Value == null)
-            return;
-
-        player.Pawn.Value.RenderMode = RenderMode_t.kRenderTransColor;
-        player.Pawn.Value.Render = Color.Blue;
-        SetColorTeam(player, "CBaseModelEntity", "m_clrRender", Role.Detective);
-    }
-
-    private void ApplyTraitorColor(CCSPlayerController player)
-    {
-        if (!player.IsReal() || player.Pawn.Value == null)
-            return;
-
-        player.Pawn.Value.RenderMode = RenderMode_t.kRenderGlow;
-        player.Pawn.Value.Render = Color.Red;
-        SetColorTeam(player, "CBaseModelEntity", "m_clrRender", Role.Traitor);
-        //apply for traitors only somehow?
-    }
-
-    private void ApplyInnocentColor(CCSPlayerController player)
-    {
-        if (!player.IsReal() || player.Pawn.Value == null)
-            return;
-        
-        player.Pawn.Value.RenderMode = RenderMode_t.kRenderGlow;
-        player.Pawn.Value.Render = Color.Green;
-        
-        SetColorTeam(player, "CBaseModelEntity", "m_clrRender");
-    }
-
     private Role GetWinner()
     {
         return _traitorsLeft == 0 ? Role.Traitor : Role.Innocent;
     }
-    
-    private HookResult Event_PlayerSpawn(EventPlayerSpawn @event, GameEventInfo info)
+
+    private void SendDeathMessage(CCSPlayerController playerWhoWasDamaged, CCSPlayerController attacker)
     {
-        if (!@event.Userid.IsValid)
-        {
-            return HookResult.Continue;
-        }
-    
-        CCSPlayerController player = @event.Userid;
+        Server.PrintToChatAll(StringUtils.FormatTTT($"{GetRole(playerWhoWasDamaged).FormatStringFullAfter(" has been found.")}"));
+            
+        if (attacker == playerWhoWasDamaged || attacker == null) return;
+            
+        attacker.ModifyScoreBoard();
+            
+        playerWhoWasDamaged.PrintToChat(StringUtils.FormatTTT(
+            $"You were killed by {GetRole(attacker).FormatStringFullAfter(" " + attacker.PlayerName)}."));
+        attacker.PrintToChat(StringUtils.FormatTTT($"You killed {GetRole(playerWhoWasDamaged).FormatStringFullAfter(" " + playerWhoWasDamaged.PlayerName)}."));
 
-        if(!player.IsReal())
-        {
-            return HookResult.Continue;
-        }
-
-        if (!player.PlayerPawn.IsValid)
-        {
-            return HookResult.Continue;
-        }
-
-        CHandle<CCSPlayerPawn> pawn = player.PlayerPawn;
-
-        Server.NextFrame(() => PlayerSpawnNextFrame(player, pawn));
-
-        return HookResult.Continue;
-    }
-
-    
-    private readonly WIN_LINUX<int> OnCollisionRulesChangedOffset = new(173, 172);
-
-    private void PlayerSpawnNextFrame(CCSPlayerController player, CHandle<CCSPlayerPawn> pawn)
-    {
-        pawn.Value.Collision.CollisionGroup = (byte)CollisionGroup.COLLISION_GROUP_DISSOLVING;
-
-        pawn.Value.Collision.CollisionAttribute.CollisionGroup = (byte)CollisionGroup.COLLISION_GROUP_DISSOLVING;
-
-        VirtualFunctionVoid<nint> collisionRulesChanged =
-            new VirtualFunctionVoid<nint>(pawn.Value.Handle, OnCollisionRulesChangedOffset.Get());
-
-        collisionRulesChanged.Invoke(pawn.Value.Handle);
-    }
-    public static CCSPlayerController? player(CEntityInstance? instance)
-    {
-        if (instance == null)
-        {
-            return null;
-        }
-
-        if (instance.DesignerName != "player")
-        {
-            return null;
-        }
-
-        // grab the pawn index
-        int player_index = (int)instance.Index;
-
-        // grab player controller from pawn
-        CCSPlayerPawn player_pawn = Utilities.GetEntityFromIndex<CCSPlayerPawn>(player_index);
-
-        // pawn valid
-        if (player_pawn == null || !player_pawn.IsValid)
-        {
-            return null;
-        }
-
-        // controller valid
-        if (player_pawn.OriginalController == null || !player_pawn.OriginalController.IsValid)
-        {
-            return null;
-        }
-
-        // any further validity is up to the caller
-        return player_pawn.OriginalController.Value;
-    }
-}
-
-
-
-internal static class IsValid
-{
-    public static bool PlayerIndex(uint playerIndex)
-    {
-        if(playerIndex == 0)
-        {
-            return false;
-        }
-
-        if(!(1 <= playerIndex && playerIndex <= Server.MaxPlayers))
-        {
-            return false;
-        }
-
-        return true;
-    }
-}
-
-
-public class WIN_LINUX<T>
-{
-    [JsonPropertyName("Windows")]
-    public T Windows { get; private set; }
-
-    [JsonPropertyName("Linux")]
-    public T Linux { get; private set; }
-
-    public WIN_LINUX(T windows, T linux)
-    {
-        this.Windows = windows;
-        this.Linux = linux;
-    }
-
-    public T Get()
-    {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            return this.Windows;
-        }
-        else
-        {
-            return this.Linux;
-        }
     }
 }

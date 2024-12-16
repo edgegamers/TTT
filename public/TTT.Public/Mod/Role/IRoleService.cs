@@ -15,7 +15,6 @@ public interface IRoleService : IPlayerService
     void AddDetective(CCSPlayerController player);
     void AddTraitor(CCSPlayerController player);
     void AddInnocents(IEnumerable<CCSPlayerController> players);
-    public void ApplyColorFromRole(CCSPlayerController player, Role role);
     void Clear();
 }
 
