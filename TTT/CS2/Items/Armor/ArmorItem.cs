@@ -34,9 +34,7 @@ public class ArmorItem(IServiceProvider provider) : BaseItem(provider) {
     if (gamePlayer == null) return;
 
     gamePlayer.SetArmor(config.Armor, config.Helmet);
-  }
-
-  public override PurchaseResult CanPurchase(IOnlinePlayer player) {
-    return PurchaseResult.SUCCESS;
+    
+    base.OnPurchase(player);
   }
 }

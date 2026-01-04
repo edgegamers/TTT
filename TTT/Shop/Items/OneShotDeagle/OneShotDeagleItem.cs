@@ -41,9 +41,7 @@ public class OneShotDeagleItem(IServiceProvider provider)
         deagleConfigStorage.WeaponSlot);
       await Inventory.GiveWeapon(player, this);
     });
-  }
-
-  public override PurchaseResult CanPurchase(IOnlinePlayer player) {
-    return PurchaseResult.SUCCESS;
+    
+    base.OnPurchase(player);
   }
 }

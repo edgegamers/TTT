@@ -34,5 +34,7 @@ public class ClusterGrenadeItem(IServiceProvider provider)
 
   public override void OnPurchase(IOnlinePlayer player) {
     Inventory.GiveWeapon(player, config);
+    
+    base.OnPurchase(player);
   }
 }

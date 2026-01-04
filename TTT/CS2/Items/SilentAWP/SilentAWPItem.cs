@@ -54,6 +54,8 @@ public class SilentAWPItem(IServiceProvider provider)
       await Inventory.RemoveWeaponInSlot(player, 0);
       await Inventory.GiveWeapon(player, config);
     });
+    
+    base.OnPurchase(player);
   }
 
   private HookResult onWeaponSound(UserMessage msg) {

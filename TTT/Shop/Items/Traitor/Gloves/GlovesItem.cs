@@ -30,6 +30,4 @@ public class GlovesItem(IServiceProvider provider)
     => Locale[GlovesMsgs.SHOP_ITEM_GLOVES_DESC];
 
   public override ShopItemConfig Config => config;
-
-  public override void OnPurchase(IOnlinePlayer player) { }
 }

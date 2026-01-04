@@ -30,6 +30,4 @@ public class PoisonShotsItem(IServiceProvider provider)
     => Locale[PoisonShotMsgs.SHOP_ITEM_POISON_SHOTS_DESC];
 
   public override ShopItemConfig Config => config;
-
-  public override void OnPurchase(IOnlinePlayer player) { }
 }

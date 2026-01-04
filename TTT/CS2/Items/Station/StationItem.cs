@@ -140,6 +140,8 @@ public abstract class StationItem<T>(IServiceProvider provider,
 
       prop.Teleport(spawnPos);
     });
+    
+    base.OnPurchase(player);
   }
 
   abstract protected void onInterval();

@@ -97,6 +97,7 @@ public class TripwireItem(IServiceProvider provider)
           });
         });
     });
+    base.OnPurchase(player);
   }
 
   private bool placeTripwire(IOnlinePlayer player,
