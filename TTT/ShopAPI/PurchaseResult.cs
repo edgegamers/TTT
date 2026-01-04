@@ -40,7 +40,17 @@ public enum PurchaseResult {
   /// <summary>
   ///   The item cannot be purchased multiple times, and the player already owns it.
   /// </summary>
-  ALREADY_OWNED
+  ALREADY_OWNED,
+
+  /// <summary>
+  ///   The limit for the item has been reached for the player.
+  /// </summary>
+  LIMIT_REACHED_PLAYER,
+
+  /// <summary>
+  ///   The limit for the item has been reached for the team.
+  /// </summary>
+  LIMIT_REACHED_TEAM
 }
 
 public static class PurchaseResultExtensions {
@@ -59,6 +69,10 @@ public static class PurchaseResultExtensions {
         "You do not have the required role to purchase this item",
       PurchaseResult.ALREADY_OWNED =>
         "You have purchased the maximum amount of this item",
+      PurchaseResult.LIMIT_REACHED_PLAYER =>
+        "You have reached the purchase limit for this item",
+      PurchaseResult.LIMIT_REACHED_TEAM =>
+        "Your team has reached the purchase limit for this item",
       _ => "An unexpected error occurred"
     };
   }
