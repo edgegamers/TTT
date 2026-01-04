@@ -55,13 +55,9 @@ public class CS2DamageStationConfig : IStorage<DamageStationConfig>,
       "0 = Unlimited, 1 = Per Player, 2 = Per Team", 1, ConVarFlags.FCVAR_NONE,
       new RangeValidator<int>(0, 2));
   
-  public void Dispose() {
-    throw new NotImplementedException();
-  }
+  public void Dispose() { }
   
-  public void Start() {
-    throw new NotImplementedException();
-  }
+  public void Start() { }
   
   public void Start(BasePlugin? plugin) {
     ArgumentNullException.ThrowIfNull(plugin, nameof(plugin));
