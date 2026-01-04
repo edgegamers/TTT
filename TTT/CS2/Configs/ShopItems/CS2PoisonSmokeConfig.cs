@@ -2,6 +2,7 @@
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Cvars;
 using CounterStrikeSharp.API.Modules.Cvars.Validators;
+using ShopAPI;
 using ShopAPI.Configs.Traitor;
 using TTT.API;
 using TTT.API.Storage;
@@ -40,6 +41,16 @@ public class CS2PoisonSmokeConfig : IStorage<PoisonSmokeConfig>, IPluginModule {
     "Sound played when poison deals damage",
     "sounds/player/player_damagebody_03");
 
+  public static readonly FakeConVar<int> CV_MAX_PURCHASES = new(
+    "css_ttt_shop_poisonsmoke_max_purchases",
+    "Maximum number of times a player can purchase the Damage Station per round",
+    0, ConVarFlags.FCVAR_NONE, new RangeValidator<int>(1, 100));
+
+  public static readonly FakeConVar<int> CV_LIMIT_MODE =
+    new("css_ttt_shop_poisonsmoke_limit_mode",
+      "0 = Unlimited, 1 = Per Player, 2 = Per Team", 0, ConVarFlags.FCVAR_NONE,
+      new RangeValidator<int>(0, 2));
+
   public void Dispose() { }
 
   public void Start() { }
@@ -59,7 +70,11 @@ public class CS2PoisonSmokeConfig : IStorage<PoisonSmokeConfig>, IPluginModule {
     };
 
     var cfg = new PoisonSmokeConfig {
-      Price = CV_PRICE.Value, Weapon = CV_WEAPON.Value, PoisonConfig = poison
+      Price        = CV_PRICE.Value,
+      Weapon       = CV_WEAPON.Value,
+      PoisonConfig = poison,
+      Limit        = CV_MAX_PURCHASES.Value,
+      LimitMode    = (ItemLimitMode)CV_LIMIT_MODE.Value
     };
 
     return Task.FromResult<PoisonSmokeConfig?>(cfg);

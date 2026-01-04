@@ -3,6 +3,7 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Cvars;
 using CounterStrikeSharp.API.Modules.Cvars.Validators;
+using ShopAPI;
 using ShopAPI.Configs.Traitor;
 using TTT.API;
 using TTT.API.Storage;
@@ -83,6 +84,16 @@ public class CS2TripwireConfig : IStorage<TripwireConfig>, IPluginModule {
     "Amount of money rewarded to a player for successfully defusing a tripwire",
     20, ConVarFlags.FCVAR_NONE, new RangeValidator<int>(0, 10000));
 
+  public static readonly FakeConVar<int> CV_MAX_PURCHASES = new(
+    "css_ttt_shop_tripwire_max_purchases",
+    "Maximum number of times a player can purchase the Tripwire per round", 0,
+    ConVarFlags.FCVAR_NONE, new RangeValidator<int>(1, 100));
+
+  public static readonly FakeConVar<int> CV_LIMIT_MODE =
+    new("css_ttt_shop_tripwire_limit_mode",
+      "0 = Unlimited, 1 = Per Player, 2 = Per Team", 0, ConVarFlags.FCVAR_NONE,
+      new RangeValidator<int>(0, 2));
+
   public void Dispose() { }
 
   public void Start() { }
@@ -108,7 +119,9 @@ public class CS2TripwireConfig : IStorage<TripwireConfig>, IPluginModule {
       TripwireThickness = CV_THICKNESS.Value,
       DefuseTime        = TimeSpan.FromSeconds(CV_DEFUSE_TIME.Value),
       DefuseRate        = TimeSpan.FromSeconds(CV_DEFUSE_RATE.Value),
-      DefuseReward      = CV_DEFUSE_REWARD.Value
+      DefuseReward      = CV_DEFUSE_REWARD.Value,
+      Limit             = CV_MAX_PURCHASES.Value,
+      LimitMode         = (ItemLimitMode)CV_LIMIT_MODE.Value
     };
 
     return Task.FromResult<TripwireConfig?>(cfg);

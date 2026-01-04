@@ -2,6 +2,7 @@
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Cvars;
 using CounterStrikeSharp.API.Modules.Cvars.Validators;
+using ShopAPI;
 using ShopAPI.Configs.Detective;
 using TTT.API;
 using TTT.API.Storage;
@@ -44,6 +45,16 @@ public class CS2HealthStationConfig : IStorage<HealthStationConfig>,
     "Maximum range (in units) from which players can use the station", 256f,
     ConVarFlags.FCVAR_NONE, new RangeValidator<float>(50f, 2048f));
 
+  public static readonly FakeConVar<int> CV_MAX_PURCHASES = new(
+    "css_ttt_shop_healthstation_max_purchases",
+    "Maximum number of times a player can purchase the Health Station per round",
+    0, ConVarFlags.FCVAR_NONE, new RangeValidator<int>(1, 100));
+
+  public static readonly FakeConVar<int> CV_LIMIT_MODE =
+    new("css_ttt_shop_healthstation_limit_mode",
+      "0 = Unlimited, 1 = Per Player, 2 = Per Team", 0, ConVarFlags.FCVAR_NONE,
+      new RangeValidator<int>(0, 2));
+
   public void Dispose() { }
 
   public void Start() { }
@@ -61,7 +72,9 @@ public class CS2HealthStationConfig : IStorage<HealthStationConfig>,
       HealthInterval   = TimeSpan.FromSeconds(CV_HEALTH_INTERVAL.Value),
       StationHealth    = CV_STATION_HEALTH.Value,
       TotalHealthGiven = CV_TOTAL_HEALTH_GIVEN.Value,
-      MaxRange         = CV_MAX_RANGE.Value
+      MaxRange         = CV_MAX_RANGE.Value,
+      Limit            = CV_MAX_PURCHASES.Value,
+      LimitMode        = (ItemLimitMode)CV_LIMIT_MODE.Value
     };
 
     return Task.FromResult<HealthStationConfig?>(cfg);

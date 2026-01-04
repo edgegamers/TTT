@@ -21,6 +21,11 @@ public class CS2HealthshotConfig : IStorage<HealthshotConfig>, IPluginModule {
   public static readonly FakeConVar<string> CV_WEAPON = new(
     "css_ttt_shop_healthshot_weapon", "Weapon entity name for the Healthshot",
     "weapon_healthshot");
+  
+  public static readonly FakeConVar<int> CV_LIMIT_MODE =
+    new("css_ttt_shop_healthshot_limit_mode",
+      "0 = Unlimited, 1 = Per Player, 2 = Per Team", 1, ConVarFlags.FCVAR_NONE,
+      new RangeValidator<int>(0, 2));
 
   public void Dispose() { }
 
@@ -34,8 +39,9 @@ public class CS2HealthshotConfig : IStorage<HealthshotConfig>, IPluginModule {
   public Task<HealthshotConfig?> Load() {
     var cfg = new HealthshotConfig {
       Price        = CV_PRICE.Value,
-      MaxPurchases = CV_MAX_PURCHASES.Value,
-      Weapon       = CV_WEAPON.Value
+      Limit        = CV_MAX_PURCHASES.Value,
+      Weapon       = CV_WEAPON.Value,
+      LimitMode    = (ItemLimitMode)CV_LIMIT_MODE.Value
     };
 
     return Task.FromResult<HealthshotConfig?>(cfg);

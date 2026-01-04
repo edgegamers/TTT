@@ -3,6 +3,7 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Cvars;
 using CounterStrikeSharp.API.Modules.Cvars.Validators;
+using ShopAPI;
 using ShopAPI.Configs;
 using TTT.API;
 using TTT.API.Storage;
@@ -24,6 +25,16 @@ public class CS2BodyPaintConfig : IStorage<BodyPaintConfig>, IPluginModule {
     "Color to apply to the player's body (HTML hex or known color name)",
     "GreenYellow");
 
+  public static readonly FakeConVar<int> CV_MAX_PURCHASES = new(
+    "css_ttt_shop_bodypaint_max_purchases",
+    "Maximum number of times a player can purchase the Body Pait per round", 0,
+    ConVarFlags.FCVAR_NONE, new RangeValidator<int>(1, 100));
+
+  public static readonly FakeConVar<int> CV_LIMIT_MODE =
+    new("css_ttt_shop_bodypaint_limit_mode",
+      "0 = Unlimited, 1 = Per Player, 2 = Per Team", 0, ConVarFlags.FCVAR_NONE,
+      new RangeValidator<int>(0, 2));
+
   public void Dispose() { }
 
   public void Start() { }
@@ -44,7 +55,9 @@ public class CS2BodyPaintConfig : IStorage<BodyPaintConfig>, IPluginModule {
     var cfg = new BodyPaintConfig {
       Price        = CV_PRICE.Value,
       MaxUses      = CV_MAX_USES.Value,
-      ColorToApply = parsedColor
+      ColorToApply = parsedColor,
+      Limit        = CV_MAX_PURCHASES.Value,
+      LimitMode    = (ItemLimitMode)CV_LIMIT_MODE.Value
     };
 
     return Task.FromResult<BodyPaintConfig?>(cfg);
