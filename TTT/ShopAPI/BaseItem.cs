@@ -1,10 +1,12 @@
-﻿using CounterStrikeSharp.API.Core;
+﻿using JetBrains.Annotations;
 using Microsoft.Extensions.DependencyInjection;
 using ShopAPI.Configs;
 using TTT.API.Game;
 using TTT.API.Messages;
 using TTT.API.Player;
 using TTT.API.Role;
+using TTT.Game.Events.Game;
+using TTT.API.Events;
 using TTT.Game.Roles;
 using TTT.Locale;
 
@@ -43,7 +45,7 @@ public abstract class BaseItem(IServiceProvider provider) : IShopItem {
   public abstract ShopItemConfig Config { get; }
 
   public virtual void OnPurchase(IOnlinePlayer player) {
-    TrackPurchase(player);
+    trackPurchase(player);
   }
 
   public virtual PurchaseResult CanPurchase(IOnlinePlayer player) {
@@ -72,7 +74,7 @@ public abstract class BaseItem(IServiceProvider provider) : IShopItem {
     return PurchaseResult.SUCCESS;
   }
 
-  protected void TrackPurchase(IOnlinePlayer player) {
+  private void trackPurchase(IOnlinePlayer player) {
     switch (Config.LimitMode) {
       case ItemLimitMode.PER_PLAYER:
         PlayerPurchaseCount[player] =
@@ -93,7 +95,10 @@ public abstract class BaseItem(IServiceProvider provider) : IShopItem {
     }
   }
 
-  protected void ResetPurchaseTracking() {
+  [UsedImplicitly]
+  [EventHandler]
+  public void OnGameState(GameStateUpdateEvent ev) {
+    if (ev.NewState != State.FINISHED) return;
     PlayerPurchaseCount.Clear();
     TeamPurchaseCount.Clear();
   }
