@@ -1,4 +1,4 @@
-﻿using CounterStrikeSharp.API;
+using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Cvars;
 using CounterStrikeSharp.API.Modules.Cvars.Validators;
@@ -44,7 +44,7 @@ public class CS2KarmaConfig : IStorage<KarmaConfig>, IPluginModule {
   // Karma deltas
   public static readonly FakeConVar<int> CV_INNO_ON_TRAITOR = new(
     "css_ttt_karma_inno_on_traitor",
-    "Karma gained when Innocent kills a Traitor", 2, ConVarFlags.FCVAR_NONE,
+    "Karma gained when Innocent or Detective kills a Traitor", 3, ConVarFlags.FCVAR_NONE,
     new RangeValidator<int>(-50, 50));
 
   public static readonly FakeConVar<int> CV_TRAITOR_ON_DETECTIVE = new(
@@ -64,12 +64,12 @@ public class CS2KarmaConfig : IStorage<KarmaConfig>, IPluginModule {
 
   public static readonly FakeConVar<int> CV_TRAITOR_ON_TRAITOR = new(
     "css_ttt_karma_traitor_on_traitor",
-    "Karma lost when Traitor kills another Traitor", -12,
+    "Karma lost when Traitor kills another Traitor", -10,
     ConVarFlags.FCVAR_NONE, new RangeValidator<int>(-50, 50));
 
   public static readonly FakeConVar<int> CV_INNO_ON_DETECTIVE = new(
     "css_ttt_karma_inno_on_detective",
-    "Karma lost when Innocent kills a Detective", -15, ConVarFlags.FCVAR_NONE,
+    "Karma lost when Innocent kills a Detective", -8, ConVarFlags.FCVAR_NONE,
     new RangeValidator<int>(-50, 50));
 
   public static readonly FakeConVar<int> CV_KARMA_PER_ROUND = new(
