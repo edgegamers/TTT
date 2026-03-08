@@ -31,8 +31,6 @@ public class Stickers(IServiceProvider provider)
 
   public override ShopItemConfig Config => config;
 
-  public override void OnPurchase(IOnlinePlayer player) { }
-
   public override PurchaseResult CanPurchase(IOnlinePlayer player) {
     if (Shop.HasItem<Stickers>(player)) return PurchaseResult.ALREADY_OWNED;
     return base.CanPurchase(player);

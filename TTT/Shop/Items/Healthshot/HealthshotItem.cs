@@ -20,8 +20,6 @@ public static class HealthshotServiceCollection {
 
 public class HealthshotItem(IServiceProvider provider)
   : BaseItem(provider), IListener {
-  private readonly Dictionary<string, int> purchaseCounts = new();
-
   private HealthshotConfig config
     => Provider.GetService<IStorage<HealthshotConfig>>()
     ?.Load()
@@ -38,22 +36,6 @@ public class HealthshotItem(IServiceProvider provider)
   public override void OnPurchase(IOnlinePlayer player) {
     Inventory.GiveWeapon(player, new BaseWeapon(config.Weapon));
 
-    purchaseCounts.TryGetValue(player.Id, out var purchases);
-    purchaseCounts[player.Id] = purchases + 1;
-  }
-
-  public override PurchaseResult CanPurchase(IOnlinePlayer player) {
-    if (!purchaseCounts.TryGetValue(player.Id, out var purchases))
-      return PurchaseResult.SUCCESS;
-    return purchases < config.MaxPurchases ?
-      PurchaseResult.SUCCESS :
-      PurchaseResult.ALREADY_OWNED;
-  }
-
-  [UsedImplicitly]
-  [EventHandler]
-  public void OnGameState(GameStateUpdateEvent ev) {
-    if (ev.NewState != State.FINISHED) return;
-    purchaseCounts.Clear();
+    base.OnPurchase(player);
   }
 }

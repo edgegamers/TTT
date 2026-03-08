@@ -55,6 +55,8 @@ public static class CS2ServiceCollection {
     collection.AddModBehavior<IStorage<StickersConfig>, CS2StickersConfig>();
     collection.AddModBehavior<IStorage<BodyPaintConfig>, CS2BodyPaintConfig>();
     collection
+     .AddModBehavior<IStorage<DamageStationConfig>, CS2DamageStationConfig>();
+    collection
      .AddModBehavior<IStorage<DnaScannerConfig>, CS2DnaScannerConfig>();
     collection
      .AddModBehavior<IStorage<HealthStationConfig>, CS2HealthStationConfig>();

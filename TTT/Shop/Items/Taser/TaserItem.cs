@@ -29,9 +29,6 @@ public class TaserItem(IServiceProvider provider) : BaseItem(provider) {
     // Remove in case they already have it, to allow refresh of recharging taser
     Inventory.RemoveWeapon(player, config.Weapon);
     Inventory.GiveWeapon(player, new BaseWeapon(config.Weapon));
-  }
-
-  public override PurchaseResult CanPurchase(IOnlinePlayer player) {
-    return PurchaseResult.SUCCESS;
+    base.OnPurchase(player);
   }
 }

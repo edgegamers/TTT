@@ -28,8 +28,6 @@ public class DnaScanner(IServiceProvider provider)
   public override string Description => Locale[DnaMsgs.SHOP_ITEM_DNA_DESC];
   public override ShopItemConfig Config => config;
 
-  public override void OnPurchase(IOnlinePlayer player) { }
-
   public override PurchaseResult CanPurchase(IOnlinePlayer player) {
     if (Shop.HasItem<DnaScanner>(player)) return PurchaseResult.ALREADY_OWNED;
     return base.CanPurchase(player);

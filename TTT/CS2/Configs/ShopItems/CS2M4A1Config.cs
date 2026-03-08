@@ -2,6 +2,7 @@
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Cvars;
 using CounterStrikeSharp.API.Modules.Cvars.Validators;
+using ShopAPI;
 using ShopAPI.Configs;
 using TTT.API;
 using TTT.API.Storage;
@@ -23,6 +24,16 @@ public class CS2M4A1Config : IStorage<M4A1Config>, IPluginModule {
     "Weapons granted with this item (comma-separated names)",
     "weapon_m4a1_silencer,weapon_usp_silencer", ConVarFlags.FCVAR_NONE,
     new ItemValidator(allowMultiple: true));
+
+  public static readonly FakeConVar<int> CV_MAX_PURCHASES = new(
+    "css_ttt_shop_m4a1_max_purchases",
+    "Maximum number of times a player can purchase the M4A1 per round", 0,
+    ConVarFlags.FCVAR_NONE, new RangeValidator<int>(1, 100));
+
+  public static readonly FakeConVar<int> CV_LIMIT_MODE =
+    new("css_ttt_shop_m4a1_limit_mode",
+      "0 = Unlimited, 1 = Per Player, 2 = Per Team", 0, ConVarFlags.FCVAR_NONE,
+      new RangeValidator<int>(0, 2));
 
   public void Dispose() { }
 
@@ -46,7 +57,11 @@ public class CS2M4A1Config : IStorage<M4A1Config>, IPluginModule {
      .ToArray();
 
     var cfg = new M4A1Config {
-      Price = CV_PRICE.Value, ClearSlots = slots, Weapons = weapons
+      Price      = CV_PRICE.Value,
+      ClearSlots = slots,
+      Weapons    = weapons,
+      Limit      = CV_MAX_PURCHASES.Value,
+      LimitMode  = (ItemLimitMode)CV_LIMIT_MODE.Value
     };
 
     return Task.FromResult<M4A1Config?>(cfg);

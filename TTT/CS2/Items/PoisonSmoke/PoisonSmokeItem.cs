@@ -33,6 +33,8 @@ public class PoisonSmokeItem(IServiceProvider provider)
 
   public override void OnPurchase(IOnlinePlayer player) {
     Inventory.GiveWeapon(player, new BaseWeapon(config.Weapon));
+    
+    base.OnPurchase(player);
   }
 
   public override PurchaseResult CanPurchase(IOnlinePlayer player) {

@@ -2,6 +2,7 @@
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Cvars;
 using CounterStrikeSharp.API.Modules.Cvars.Validators;
+using ShopAPI;
 using ShopAPI.Configs;
 using TTT.API;
 using TTT.API.Storage;
@@ -28,6 +29,16 @@ public class CS2OneShotDeagleConfig : IStorage<OneShotDeagleConfig>,
     "Weapon entity name used for the One-Shot Weapon", "weapon_revolver",
     ConVarFlags.FCVAR_NONE, new ItemValidator(allowEmpty: false));
 
+  public static readonly FakeConVar<int> CV_MAX_PURCHASES = new(
+    "css_ttt_shop_onedeagle_max_purchases",
+    "Maximum number of times a player can purchase the One-Shot Weapon per round",
+    0, ConVarFlags.FCVAR_NONE, new RangeValidator<int>(1, 100));
+
+  public static readonly FakeConVar<int> CV_LIMIT_MODE =
+    new("css_ttt_shop_onedeagle_limit_mode",
+      "0 = Unlimited, 1 = Per Player, 2 = Per Team", 0, ConVarFlags.FCVAR_NONE,
+      new RangeValidator<int>(0, 2));
+
   public void Dispose() { }
 
   public void Start() { }
@@ -39,7 +50,9 @@ public class CS2OneShotDeagleConfig : IStorage<OneShotDeagleConfig>,
       Price            = CV_PRICE.Value,
       DoesFriendlyFire = CV_FRIENDLY_FIRE.Value,
       Weapon           = CV_WEAPON.Value,
-      KillShooterOnFF  = CV_KILL_SHOOTER_ON_FF.Value
+      KillShooterOnFF  = CV_KILL_SHOOTER_ON_FF.Value,
+      Limit            = CV_MAX_PURCHASES.Value,
+      LimitMode        = (ItemLimitMode)CV_LIMIT_MODE.Value
     };
 
     return Task.FromResult<OneShotDeagleConfig?>(cfg);

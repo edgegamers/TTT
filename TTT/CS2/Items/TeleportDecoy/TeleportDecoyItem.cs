@@ -35,5 +35,6 @@ public class TeleportDecoyItem(IServiceProvider provider)
 
   public override void OnPurchase(IOnlinePlayer player) {
     Inventory.GiveWeapon(player, new BaseWeapon("weapon_decoy"));
+    base.OnPurchase(player);
   }
 }

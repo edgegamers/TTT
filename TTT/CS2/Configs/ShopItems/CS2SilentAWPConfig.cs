@@ -2,6 +2,7 @@
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Cvars;
 using CounterStrikeSharp.API.Modules.Cvars.Validators;
+using ShopAPI;
 using ShopAPI.Configs.Traitor;
 using TTT.API;
 using TTT.API.Storage;
@@ -31,6 +32,16 @@ public class CS2SilentAWPConfig : IStorage<SilentAWPConfig>, IPluginModule {
     "Current ammo loaded in the Silent AWP", 1, ConVarFlags.FCVAR_NONE,
     new RangeValidator<int>(0, 10));
 
+  public static readonly FakeConVar<int> CV_MAX_PURCHASES = new(
+    "css_ttt_shop_silentawp_max_purchases",
+    "Maximum number of times a player can purchase the Silent AWP per round", 0,
+    ConVarFlags.FCVAR_NONE, new RangeValidator<int>(1, 100));
+
+  public static readonly FakeConVar<int> CV_LIMIT_MODE =
+    new("css_ttt_shop_silentawp_limit_mode",
+      "0 = Unlimited, 1 = Per Player, 2 = Per Team", 0, ConVarFlags.FCVAR_NONE,
+      new RangeValidator<int>(0, 2));
+
   public void Dispose() { }
 
   public void Start() { }
@@ -46,7 +57,9 @@ public class CS2SilentAWPConfig : IStorage<SilentAWPConfig>, IPluginModule {
       WeaponIndex = CV_WEAPON_INDEX.Value,
       WeaponId    = CV_WEAPON_ID.Value,
       ReserveAmmo = CV_RESERVE_AMMO.Value,
-      CurrentAmmo = CV_CURRENT_AMMO.Value
+      CurrentAmmo = CV_CURRENT_AMMO.Value,
+      Limit       = CV_MAX_PURCHASES.Value,
+      LimitMode   = (ItemLimitMode)CV_LIMIT_MODE.Value
     };
 
     return Task.FromResult<SilentAWPConfig?>(cfg);

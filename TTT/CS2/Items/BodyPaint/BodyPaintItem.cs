@@ -29,6 +29,4 @@ public class BodyPaintItem(IServiceProvider provider)
     => Locale[BodyPaintMsgs.SHOP_ITEM_BODY_PAINT_DESC];
 
   public override ShopItemConfig Config => config;
-
-  public override void OnPurchase(IOnlinePlayer player) { }
 }

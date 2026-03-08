@@ -34,9 +34,7 @@ public class M4A1ShopItem(IServiceProvider provider) : BaseItem(provider) {
       foreach (var weapon in config.Weapons)
         await Inventory.GiveWeapon(player, new BaseWeapon(weapon));
     });
-  }
-
-  public override PurchaseResult CanPurchase(IOnlinePlayer player) {
-    return PurchaseResult.SUCCESS;
+    
+    base.OnPurchase(player);
   }
 }

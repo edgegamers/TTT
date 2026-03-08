@@ -37,11 +37,13 @@ public class CamouflageItem(IServiceProvider provider) : BaseItem(provider) {
       var alpha      = (int)Math.Round(config.CamoVisibility * 255);
       gamePlayer?.SetColor(Color.FromArgb(alpha, Color.White));
     });
+    
+    base.OnPurchase(player);
   }
 
   public override PurchaseResult CanPurchase(IOnlinePlayer player) {
     return Shop.HasItem<CamouflageItem>(player) ?
       PurchaseResult.ALREADY_OWNED :
-      PurchaseResult.SUCCESS;
+      base.CanPurchase(player);
   }
 }

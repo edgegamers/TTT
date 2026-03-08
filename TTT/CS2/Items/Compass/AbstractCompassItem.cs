@@ -62,7 +62,11 @@ public abstract class AbstractCompassItem<TRole> : RoleRestrictedItem<TRole>,
   /// </summary>
   abstract protected bool OwnsItem(IOnlinePlayer player);
 
-  public override void OnPurchase(IOnlinePlayer player) { Owners.Add(player); }
+  public override void OnPurchase(IOnlinePlayer player) {
+    Owners.Add(player);
+    
+    base.OnPurchase(player);
+  }
 
   public override PurchaseResult CanPurchase(IOnlinePlayer player) {
     return OwnsItem(player) ?
