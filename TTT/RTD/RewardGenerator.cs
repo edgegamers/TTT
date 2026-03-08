@@ -5,7 +5,6 @@ using TTT.CS2.Items.Armor;
 using TTT.CS2.Items.Camouflage;
 using TTT.CS2.Items.Station;
 using TTT.RTD.Rewards;
-using TTT.Shop.Items;
 using TTT.Shop.Items.Detective.Stickers;
 using TTT.Shop.Items.Taser;
 
@@ -36,7 +35,6 @@ public class RewardGenerator(IServiceProvider provider)
       (new ShopItemReward<ArmorItem>(provider), PROB_VERY_LOW),
       (new ShopItemReward<TaserItem>(provider), PROB_VERY_LOW),
       (new ShopItemReward<Stickers>(provider), PROB_VERY_LOW),
-      (new ShopItemReward<OneShotDeagleItem>(provider), PROB_VERY_LOW),
       (new ProvenReward(provider), PROB_VERY_LOW),
       (new MuteReward(provider), PROB_VERY_LOW),
       (new ShopItemReward<HealthStation>(provider), PROB_EXTREMELY_LOW),

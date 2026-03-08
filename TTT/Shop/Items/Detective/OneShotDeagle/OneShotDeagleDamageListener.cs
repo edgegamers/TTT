@@ -9,9 +9,9 @@ using TTT.Game.Events.Player;
 using TTT.Game.Listeners;
 using TTT.Game.Roles;
 
-namespace TTT.Shop.Items;
+namespace TTT.Shop.Items.Detective.OneShotDeagle;
 
-public class DeagleDamageListener(IServiceProvider provider)
+public class OneShotDeagleDamageListener(IServiceProvider provider)
   : BaseListener(provider) {
   private readonly IShop shop = provider.GetRequiredService<IShop>();
 
@@ -46,7 +46,7 @@ public class DeagleDamageListener(IServiceProvider provider)
     var victimIsTraitor   = victimRole.Any(r => r is TraitorRole);
     if (attackerIsTraitor == victimIsTraitor) {
       if (config.KillShooterOnFF) attacker.Health = 0;
-      Messenger.Message(attacker, Locale[DeagleMsgs.SHOP_ITEM_DEAGLE_HIT_FF]);
+      Messenger.Message(attacker, Locale[OneShotDeagleMsgs.SHOP_ITEM_DEAGLE_HIT_FF]);
       if (!config.DoesFriendlyFire) {
         ev.IsCanceled = true;
         return;
@@ -54,6 +54,6 @@ public class DeagleDamageListener(IServiceProvider provider)
     }
 
     ev.HpLeft = -100;
-    Messenger.Message(victim, Locale[DeagleMsgs.SHOP_ITEM_DEAGLE_VICTIM]);
+    Messenger.Message(victim, Locale[OneShotDeagleMsgs.SHOP_ITEM_DEAGLE_VICTIM]);
   }
 }
