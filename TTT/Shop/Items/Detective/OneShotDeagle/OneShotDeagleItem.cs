@@ -5,28 +5,29 @@ using TTT.API;
 using TTT.API.Extensions;
 using TTT.API.Player;
 using TTT.API.Storage;
+using TTT.Game.Roles;
 
-namespace TTT.Shop.Items;
+namespace TTT.Shop.Items.Detective.OneShotDeagle;
 
 public static class DeagleServiceCollection {
   public static void AddDeagleServices(this IServiceCollection collection) {
     collection.AddModBehavior<OneShotDeagleItem>();
-    collection.AddModBehavior<DeagleDamageListener>();
+    collection.AddModBehavior<OneShotDeagleDamageListener>();
   }
 }
 
 public class OneShotDeagleItem(IServiceProvider provider)
-  : BaseItem(provider), IWeapon {
+  : RoleRestrictedItem<DetectiveRole>(provider), IWeapon {
   private OneShotDeagleConfig deagleConfigStorage
     => Provider.GetService<IStorage<OneShotDeagleConfig>>()
     ?.Load()
      .GetAwaiter()
      .GetResult() ?? new OneShotDeagleConfig();
 
-  public override string Name => Locale[DeagleMsgs.SHOP_ITEM_DEAGLE];
+  public override string Name => Locale[OneShotDeagleMsgs.SHOP_ITEM_DEAGLE];
 
   public override string Description
-    => Locale[DeagleMsgs.SHOP_ITEM_DEAGLE_DESC];
+    => Locale[OneShotDeagleMsgs.SHOP_ITEM_DEAGLE_DESC];
 
   public override ShopItemConfig Config => deagleConfigStorage;
 
@@ -41,9 +42,5 @@ public class OneShotDeagleItem(IServiceProvider provider)
         deagleConfigStorage.WeaponSlot);
       await Inventory.GiveWeapon(player, this);
     });
-  }
-
-  public override PurchaseResult CanPurchase(IOnlinePlayer player) {
-    return PurchaseResult.SUCCESS;
   }
 }

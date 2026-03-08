@@ -15,7 +15,7 @@ using TTT.CS2.Items.Station;
 using TTT.CS2.Items.TeleportDecoy;
 using TTT.CS2.Items.Tripwire;
 using TTT.Shop.Commands;
-using TTT.Shop.Items;
+using TTT.Shop.Items.Detective.OneShotDeagle;
 using TTT.Shop.Items.Detective.Stickers;
 using TTT.Shop.Items.Healthshot;
 using TTT.Shop.Items.M4A1;
