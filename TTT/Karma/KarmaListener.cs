@@ -21,7 +21,7 @@ public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
   private readonly IRoleAssigner roles =
     provider.GetRequiredService<IRoleAssigner>();
   
-  private readonly KarmaUpdateManager karmaUpdateManager = provider.GetRequiredService<KarmaUpdateManager>();
+  private readonly IKarmaUpdateManager karmaUpdateManager = provider.GetRequiredService<IKarmaUpdateManager>();
 
   public bool GiveKarmaOnRoundEnd = true;
 
@@ -87,7 +87,7 @@ public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
     if (victimRole is TraitorRole == killerRole is TraitorRole) {
       if (killerIsGuilty)
         badKills[killer.Id] = badKills.GetValueOrDefault(killer.Id, 0) + 1;
-      attackerKarmaMultiplier = badKills[killer.Id];
+      attackerKarmaMultiplier = badKills.GetValueOrDefault(killer.Id, 1);
     }
 
     switch (victimRole) {
