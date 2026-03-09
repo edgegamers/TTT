@@ -36,7 +36,6 @@ public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
   [EventHandler]
   [UsedImplicitly]
   public void OnRoundStart(GameStateUpdateEvent ev) {
-    karmaUpdateManager.ClearIgnores();
     badKills.Clear();
     firstDamage.Clear();
   }
