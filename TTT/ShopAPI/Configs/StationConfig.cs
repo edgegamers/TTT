@@ -3,6 +3,7 @@
 namespace ShopAPI.Configs;
 
 public abstract record StationConfig : ShopItemConfig {
+  public virtual int MaxPurchases { get; init; } = -1;
   public virtual int HealthIncrements { get; init; } = 5;
   public virtual int TotalHealthGiven { get; init; } = 0;
   public virtual int StationHealth { get; init; } = 200;
