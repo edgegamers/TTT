@@ -8,7 +8,7 @@ using TTT.Karma.Events;
 
 namespace TTT.Karma;
 
-public sealed class KarmaStorage(IServiceProvider provider) : IKarmaService {
+public sealed class KarmaStorageAPI(IServiceProvider provider) : IKarmaService {
   private readonly HttpClient client =
     provider.GetRequiredService<HttpClient>();
 

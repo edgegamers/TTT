@@ -3,7 +3,7 @@ using Xunit;
 
 namespace TTT.Test.Karma;
 
-public class KarmaStorageTests(IKarmaService karma) {
+public class KarmaStorageAPITests(IKarmaService karma) {
   [Fact]
   public async Task BasePlayer_HasDefaultKarma_OnCreation() {
     var player      = TestPlayer.Random();
