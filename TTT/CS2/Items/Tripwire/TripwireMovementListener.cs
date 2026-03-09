@@ -145,6 +145,7 @@ public class TripwireMovementListener(IServiceProvider provider)
       > config.FriendlyFireKarmaPenaltyTime
     ) {
       messenger.Debug("Ignoring karma penalty for player {0} due to friendly fire time threshold", player.Name);
+      messenger.Debug("KarmaUpdateManager ID: {0}", karmaUpdateManager.GetHashCode());
       karmaUpdateManager.IgnoreEvent(ev);
     }
 

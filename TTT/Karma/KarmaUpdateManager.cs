@@ -34,8 +34,9 @@ public sealed class KarmaUpdateManager(IServiceProvider provider) : IKarmaUpdate
     
     var finalDeltas = new Dictionary<IPlayer, int>();
     messenger.Debug("Ignored reasons: {0}", string.Join(", ", ignoredReasons));
-    messenger.Debug("Ignored source events: {0}", string.Join(", ", ignoredSourceEvents));
+    messenger.Debug("Ignored source events: {0} ({1})", string.Join(", ", ignoredSourceEvents), ignoredSourceEvents.Count);
     messenger.Debug("Ignored predicates: {0}", ignorePredicates.Count);
+    messenger.Debug("KarmaUpdateManager ID: {0}", GetHashCode());
     while (updateQueue.TryDequeue(out var update)) {
       messenger.Debug("Processing karma update for {0}: {1} (reason: {2}, source event: {3})",
         update.Player.Name, update.Delta, update.Reason ?? "null", update.SourceEvent?.GetType().Name ?? "null");
