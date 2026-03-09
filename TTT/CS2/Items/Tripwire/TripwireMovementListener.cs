@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Timers;
 using CounterStrikeSharp.API.Modules.Utils;
@@ -8,6 +9,7 @@ using ShopAPI.Configs.Traitor;
 using TTT.API;
 using TTT.API.Events;
 using TTT.API.Game;
+using TTT.API.Messages;
 using TTT.API.Player;
 using TTT.API.Storage;
 using TTT.CS2.API.Items;
@@ -25,6 +27,7 @@ namespace TTT.CS2.Items.Tripwire;
 
 public class TripwireMovementListener(IServiceProvider provider)
   : BaseListener(provider), IPluginModule, ITripwireActivator {
+  private readonly IMessenger messenger = provider.GetRequiredService<IMessenger>();
   private readonly IKarmaUpdateManager karmaUpdateManager =
     provider.GetRequiredService<IKarmaUpdateManager>();
   private readonly IPlayerConverter<CCSPlayerController> converter =
@@ -132,12 +135,16 @@ public class TripwireMovementListener(IServiceProvider provider)
       };
     }
     
+    messenger.Debug("config.FriendlyFireKarmaPenaltyTime: {0}", config.FriendlyFireKarmaPenaltyTime);
+    messenger.Debug("Player {0} roles: {1}", player.Name, string.Join(", ", Roles.GetRoles(player).Select(r => r.GetType().Name)));
+    messenger.Debug("Instance placed at: {0}, time since placed: {1} seconds", instance.placedAt, (DateTime.Now - instance.placedAt).TotalSeconds);
     if (
       config.FriendlyFireKarmaPenaltyTime != -1
       && Roles.GetRoles(player).Any(r => r is TraitorRole)
       && (DateTime.Now - instance.placedAt).TotalSeconds
       > config.FriendlyFireKarmaPenaltyTime
     ) {
+      messenger.Debug("Ignoring karma penalty for player {0} due to friendly fire time threshold", player.Name);
       karmaUpdateManager.IgnoreEvent(ev);
     }
 
