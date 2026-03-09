@@ -14,6 +14,7 @@ namespace TTT.Karma;
 
 public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
   private readonly Dictionary<string, int> badKills = new();
+  private readonly List<(string, string)> firstDamage = new();
 
   private readonly IGameManager games =
     provider.GetRequiredService<IGameManager>();
@@ -36,7 +37,28 @@ public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
 
   [EventHandler]
   [UsedImplicitly]
-  public void OnRoundStart(GameStateUpdateEvent ev) { badKills.Clear(); }
+  public void OnRoundStart(GameStateUpdateEvent ev) {
+    badKills.Clear();
+    firstDamage.Clear();
+  }
+
+  [EventHandler]
+  [UsedImplicitly]
+  public void OnHurt(PlayerDamagedEvent ev) {
+    if (games.ActiveGame is not { State: State.IN_PROGRESS }) return;
+
+    var victim   = ev.Player;
+    var attacker = ev.Attacker;
+    if (attacker == null) return;
+
+    // If the victim already damaged the attacker, don't mark this as first damage.
+    if (firstDamage.Contains((victim.Id, attacker.Id))) return;
+    
+    // Otherwise, mark down that the attacker damaged the victim first.
+    var pairing = (attacker.Id, victim.Id);
+    if (!firstDamage.Contains(pairing))
+      firstDamage.Add(pairing);
+  }
 
   [EventHandler]
   [UsedImplicitly]
@@ -48,6 +70,14 @@ public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
 
     if (killer == null) return;
     if (victim.Id == killer.Id) return;
+    
+    var killerIsGuilty = firstDamage.Contains((killer.Id, victim.Id));
+    var victimIsGuilty = firstDamage.Contains((victim.Id, killer.Id));
+    if (!killerIsGuilty && !victimIsGuilty) {
+      Console.WriteLine(
+        $"Neither {killer.Name} nor {victim.Name} damaged each other on kill -- how did this happen?");
+      return;
+    }
 
     var victimRole = roles.GetRoles(victim).First();
     var killerRole = roles.GetRoles(killer).First();
@@ -58,7 +88,8 @@ public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
     var attackerKarmaMultiplier = 1;
 
     if (victimRole is TraitorRole == killerRole is TraitorRole) {
-      badKills[killer.Id]     = badKills.GetValueOrDefault(killer.Id, 0) + 1;
+      if (killerIsGuilty)
+        badKills[killer.Id] = badKills.GetValueOrDefault(killer.Id, 0) + 1;
       attackerKarmaMultiplier = badKills[killer.Id];
     }
 
@@ -66,20 +97,33 @@ public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
       case InnocentRole when killerRole is TraitorRole:
         return;
       case InnocentRole:
-        victimKarmaDelta = config.INNO_ON_INNO_VICTIM;
-        killerKarmaDelta = config.INNO_ON_INNO;
+        victimKarmaDelta = victimIsGuilty ?
+          config.INNO_ON_INNO_VICTIM_GUILTY :
+          config.INNO_ON_INNO_VICTIM_INNOCENT;
+        killerKarmaDelta = killerIsGuilty ?
+          config.INNO_ON_INNO_GUILTY :
+          config.INNO_ON_INNO_INNOCENT;
         break;
       case TraitorRole:
-        killerKarmaDelta = killerRole is TraitorRole ?
-          config.TRAITOR_ON_TRAITOR :
-          config.INNO_ON_TRAITOR;
+        if (killerRole is TraitorRole) {
+          victimKarmaDelta = victimIsGuilty ?
+            config.TRAITOR_ON_TRAITOR_VICTIM_GUILTY :
+            config.TRAITOR_ON_TRAITOR_VICTIM_INNOCENT;
+          killerKarmaDelta = killerIsGuilty ?
+            config.TRAITOR_ON_TRAITOR_GUILTY :
+            config.TRAITOR_ON_TRAITOR_INNOCENT; 
+        } else killerKarmaDelta = config.INNO_ON_TRAITOR;
         break;
       case DetectiveRole:
-        killerKarmaDelta = killerRole is TraitorRole ?
-          config.TRAITOR_ON_DETECTIVE :
-          config.INNO_ON_DETECTIVE;
-        if (killerRole is DetectiveRole)
-          victimKarmaDelta = config.INNO_ON_INNO_VICTIM;
+        if (killerRole is TraitorRole) killerKarmaDelta = config.TRAITOR_ON_DETECTIVE;
+        else {
+          victimKarmaDelta = victimIsGuilty ?
+            config.INNO_ON_DETECTIVE_VICTIM_GUILTY :
+            config.INNO_ON_DETECTIVE_VICTIM_INNOCENT;
+          killerKarmaDelta = killerIsGuilty ?
+            config.INNO_ON_DETECTIVE_GUILTY :
+            config.INNO_ON_DETECTIVE_INNOCENT;
+        }
         break;
     }
 
