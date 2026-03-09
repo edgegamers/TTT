@@ -17,7 +17,7 @@ public sealed class KarmaUpdateManager(IServiceProvider provider) : IKarmaUpdate
   public void QueueUpdate(KarmaUpdate update) => updateQueue.Enqueue(update);
   public void QueueUpdate(IPlayer player, int delta, Event? sourceEvent = null, string? reason = "Unknown") {
     messenger.Debug("Queueing karma update for {0}: {1} (reason: {2}, source event: {3})",
-      player.Name, delta, reason ?? "null", sourceEvent?.GetType().Name ?? "null");
+      player.Name, delta, reason ?? "null", (sourceEvent?.GetType().Name ?? "null") + " (ID: " + sourceEvent?.GetHashCode() + ")");
     messenger.Debug("Current ignored reasons: {0}", string.Join(", ", ignoredReasons));
     messenger.Debug("Current ignored source events: {0} ({1})", string.Join(", ", ignoredSourceEvents.Select(e => e.GetType().Name + " (ID: " + e.GetHashCode() + ")")), ignoredSourceEvents.Count);
     var update = new KarmaUpdate(player, delta, sourceEvent, reason);
@@ -39,7 +39,7 @@ public sealed class KarmaUpdateManager(IServiceProvider provider) : IKarmaUpdate
     var finalDeltas = new Dictionary<IPlayer, int>();
     while (updateQueue.TryDequeue(out var update)) {
       messenger.Debug("Processing karma update for {0}: {1} (reason: {2}, source event: {3})",
-        update.Player.Name, update.Delta, update.Reason ?? "null", update.SourceEvent?.GetType().Name ?? "null");
+        update.Player.Name, update.Delta, update.Reason ?? "null", (update.SourceEvent?.GetType().Name ?? "null") + " (ID: " + update.SourceEvent?.GetHashCode() + ")");
       if (update.Reason != null && ignoredReasons.Contains(update.Reason))
         continue;
       if (update.SourceEvent != null && ignoredSourceEvents.Contains(update.SourceEvent))
