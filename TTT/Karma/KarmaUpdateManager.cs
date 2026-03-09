@@ -33,7 +33,7 @@ public sealed class KarmaUpdateManager(IServiceProvider provider) : IKarmaUpdate
     ignorePredicates.Clear();
   }
 
-  public async Task ProcessUpdatesAsync() {
+  public async Task ProcessUpdatesAsync(bool clearIgnoreOnComplete = true) {
     if (updateQueue.IsEmpty) return;
     
     var finalDeltas = new Dictionary<IPlayer, int>();
@@ -59,5 +59,7 @@ public sealed class KarmaUpdateManager(IServiceProvider provider) : IKarmaUpdate
       var newKarma = await karmaService.Load(player) + delta;
       await karmaService.Write(player, newKarma);
     }
+
+    if (clearIgnoreOnComplete) ClearIgnores();
   }
 }
