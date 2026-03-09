@@ -2,6 +2,7 @@ using JetBrains.Annotations;
 using Microsoft.Extensions.DependencyInjection;
 using TTT.API.Events;
 using TTT.API.Game;
+using TTT.API.Messages;
 using TTT.API.Role;
 using TTT.API.Storage;
 using TTT.Game.Events.Game;
@@ -15,13 +16,14 @@ public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
   private readonly Dictionary<string, int> badKills = new();
   private readonly List<(string, string)> firstDamage = new();
 
+  private readonly IMessenger messenger = 
+    provider.GetRequiredService<IMessenger>();
   private readonly IGameManager games =
     provider.GetRequiredService<IGameManager>();
-
   private readonly IRoleAssigner roles =
     provider.GetRequiredService<IRoleAssigner>();
-  
-  private readonly IKarmaUpdateManager karmaUpdateManager = provider.GetRequiredService<IKarmaUpdateManager>();
+  private readonly IKarmaUpdateManager karmaUpdateManager = 
+    provider.GetRequiredService<IKarmaUpdateManager>();
 
   public bool GiveKarmaOnRoundEnd = true;
 
@@ -71,7 +73,10 @@ public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
     var killerIsGuilty = firstDamage.Contains((killer.Id, victim.Id));
     var victimIsGuilty = firstDamage.Contains((victim.Id, killer.Id));
     // Assume killerIsGuilty if there is no damage info.
-    if (!killerIsGuilty && !victimIsGuilty) killerIsGuilty = true;
+    if (!killerIsGuilty && !victimIsGuilty) {
+      killerIsGuilty = true;
+      messenger.Debug("No damage info for kill of {0} by {1}, assuming killer is guilty", victim.Name, killer.Name);
+    }
 
     var victimRole = roles.GetRoles(victim).First();
     var killerRole = roles.GetRoles(killer).First();
@@ -122,9 +127,20 @@ public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
     }
 
     killerKarmaDelta *= attackerKarmaMultiplier;
-    
-    karmaUpdateManager.QueueUpdate(killer, killerKarmaDelta, ev, $"Killed {victimRole.Name}");
-    karmaUpdateManager.QueueUpdate(victim, victimKarmaDelta, ev, $"Killed by {killerRole.Name}");
+
+    var killerSuffix = "";
+    var victimSuffix = "";
+    if (killerKarmaDelta < 0 || victimKarmaDelta < 0) {
+      if (killerIsGuilty) {
+        killerSuffix = " [AT FAULT]";
+        victimSuffix = " [VICTIM]";
+      } else if (victimIsGuilty) {
+        killerSuffix = " [VICTIM]";
+        victimSuffix = " [AT FAULT]";
+      }
+    }
+    karmaUpdateManager.QueueUpdate(killer, killerKarmaDelta, ev, $"Killed {victimRole.Name}{killerSuffix}");
+    karmaUpdateManager.QueueUpdate(victim, victimKarmaDelta, ev, $"Killed by {killerRole.Name}{victimSuffix}");
   }
 
   [UsedImplicitly]
