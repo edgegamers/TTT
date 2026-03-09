@@ -70,11 +70,8 @@ public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
     
     var killerIsGuilty = firstDamage.Contains((killer.Id, victim.Id));
     var victimIsGuilty = firstDamage.Contains((victim.Id, killer.Id));
-    if (!killerIsGuilty && !victimIsGuilty) {
-      Console.WriteLine(
-        $"Neither {killer.Name} nor {victim.Name} damaged each other on kill -- how did this happen?");
-      return;
-    }
+    // Assume killerIsGuilty if there is no damage info.
+    if (!killerIsGuilty && !victimIsGuilty) killerIsGuilty = true;
 
     var victimRole = roles.GetRoles(victim).First();
     var killerRole = roles.GetRoles(killer).First();
