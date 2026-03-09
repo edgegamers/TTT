@@ -8,6 +8,7 @@ public record TripwireConfig : ShopItemConfig {
   public float FalloffDelay { get; init; } = 0.02f;
   public float FriendlyFireMultiplier { get; init; } = 0.5f;
   public bool FriendlyFireTriggers { get; init; } = true;
+  public int FriendlyFireKarmaPenaltyTime { get; init; } = 15;
   public float MaxPlacementDistanceSquared { get; init; } = 400f * 400f;
 
   public TimeSpan TripwireInitiationTime { get; init; } =

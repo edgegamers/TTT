@@ -19,11 +19,14 @@ using TTT.Game.Events.Game;
 using TTT.Game.Events.Player;
 using TTT.Game.Listeners;
 using TTT.Game.Roles;
+using TTT.Karma;
 
 namespace TTT.CS2.Items.Tripwire;
 
 public class TripwireMovementListener(IServiceProvider provider)
   : BaseListener(provider), IPluginModule, ITripwireActivator {
+  private readonly IKarmaUpdateManager karmaUpdateManager =
+    provider.GetRequiredService<IKarmaUpdateManager>();
   private readonly IPlayerConverter<CCSPlayerController> converter =
     provider.GetRequiredService<IPlayerConverter<CCSPlayerController>>();
 
@@ -123,6 +126,15 @@ public class TripwireMovementListener(IServiceProvider provider)
       killedWithTripwire[player.Id] = instance;
       ev = new PlayerDeathEvent(player).WithKiller(instance.owner)
        .WithWeapon("[Tripwire]");
+      
+      if (
+        config.FriendlyFireKarmaPenaltyTime != -1
+        && Roles.GetRoles(player).Any(r => r is TraitorRole)
+        && (DateTime.Now - instance.placedAt).TotalSeconds
+        > config.FriendlyFireKarmaPenaltyTime
+      ) {
+        karmaUpdateManager.IgnoreEvent(ev);
+      }
     } else {
       ev = new PlayerDamagedEvent(player, instance.owner, damage) {
         Weapon = "[Tripwire]"

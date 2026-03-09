@@ -51,25 +51,56 @@ public class CS2KarmaConfig : IStorage<KarmaConfig>, IPluginModule {
     "css_ttt_karma_traitor_on_detective",
     "Karma gained when Traitor kills a Detective", 1, ConVarFlags.FCVAR_NONE,
     new RangeValidator<int>(-50, 50));
-
-  public static readonly FakeConVar<int> CV_INNO_ON_INNO_VICTIM = new(
-    "css_ttt_karma_inno_on_inno_victim",
-    "Karma gained or lost when Innocent kills another Innocent who was a victim",
-    -2, ConVarFlags.FCVAR_NONE, new RangeValidator<int>(-50, 50));
-
-  public static readonly FakeConVar<int> CV_INNO_ON_INNO = new(
-    "css_ttt_karma_inno_on_inno",
-    "Karma lost when Innocent kills another Innocent", -8,
-    ConVarFlags.FCVAR_NONE, new RangeValidator<int>(-50, 50));
-
-  public static readonly FakeConVar<int> CV_TRAITOR_ON_TRAITOR = new(
-    "css_ttt_karma_traitor_on_traitor",
-    "Karma lost when Traitor kills another Traitor", -10,
-    ConVarFlags.FCVAR_NONE, new RangeValidator<int>(-50, 50));
-
-  public static readonly FakeConVar<int> CV_INNO_ON_DETECTIVE = new(
-    "css_ttt_karma_inno_on_detective",
-    "Karma lost when Innocent kills a Detective", -8, ConVarFlags.FCVAR_NONE,
+  
+  public static readonly FakeConVar<int> CV_INNO_ON_INNO_INNOCENT = new(
+    "css_ttt_karma_inno_on_inno_innocent",
+    "Karma delta for an Innocent (or Detective) who kills another Innocent in retaliation", 0, ConVarFlags.FCVAR_NONE,
+    new RangeValidator<int>(-50, 50));
+  public static readonly FakeConVar<int> CV_INNO_ON_INNO_GUILTY = new(
+    "css_ttt_karma_inno_on_inno_guilty",
+    "Karma delta for an Innocent (or Detective) who kills another Innocent without provocation", -4, ConVarFlags.FCVAR_NONE,
+    new RangeValidator<int>(-50, 50));
+  public static readonly FakeConVar<int> CV_INNO_ON_INNO_VICTIM_INNOCENT = new(
+    "css_ttt_karma_inno_on_inno_victim_innocent",
+    "Karma delta for an Innocent victim when an Innocent (or Detective) kills them without provocation", 1, ConVarFlags.FCVAR_NONE,
+    new RangeValidator<int>(-50, 50));
+  public static readonly FakeConVar<int> CV_INNO_ON_INNO_VICTIM_GUILTY = new(
+    "css_ttt_karma_inno_on_inno_victim_guilty",
+    "Karma delta for an Innocent victim when an Innocent (or Detective) kills them in retaliation", -2, ConVarFlags.FCVAR_NONE,
+    new RangeValidator<int>(-50, 50));
+  
+  public static readonly FakeConVar<int> CV_TRAITOR_ON_TRAITOR_INNOCENT = new(
+    "css_ttt_karma_traitor_on_traitor_innocent",
+    "Karma delta for a Traitor who kills another Traitor in retaliation", -3, ConVarFlags.FCVAR_NONE,
+    new RangeValidator<int>(-50, 50));
+  public static readonly FakeConVar<int> CV_TRAITOR_ON_TRAITOR_GUILTY = new(
+    "css_ttt_karma_traitor_on_traitor_guilty",
+    "Karma delta for a Traitor who kills another Traitor without provocation", -5, ConVarFlags.FCVAR_NONE,
+    new RangeValidator<int>(-50, 50));
+  public static readonly FakeConVar<int> CV_TRAITOR_ON_TRAITOR_VICTIM_INNOCENT = new(
+    "css_ttt_karma_traitor_on_traitor_victim_innocent",
+    "Karma delta for a Traitor victim when killed by another Traitor without provocation", 1, ConVarFlags.FCVAR_NONE,
+    new RangeValidator<int>(-50, 50));
+  public static readonly FakeConVar<int> CV_TRAITOR_ON_TRAITOR_VICTIM_GUILTY = new(
+    "css_ttt_karma_traitor_on_traitor_victim_guilty",
+    "Karma delta for a Traitor victim when killed by another Traitor in retaliation", -2, ConVarFlags.FCVAR_NONE,
+    new RangeValidator<int>(-50, 50));
+  
+  public static readonly FakeConVar<int> CV_INNO_ON_DETECTIVE_INNOCENT = new(
+    "css_ttt_karma_inno_on_detective_innocent",
+    "Karma delta for an Innocent (or Detective) who kills a Detective in retaliation", -4, ConVarFlags.FCVAR_NONE,
+    new RangeValidator<int>(-50, 50));
+  public static readonly FakeConVar<int> CV_INNO_ON_DETECTIVE_GUILTY = new(
+    "css_ttt_karma_inno_on_detective_guilty",
+    "Karma delta for an Innocent (or Detective) who kills a Detective without provocation", -6, ConVarFlags.FCVAR_NONE,
+    new RangeValidator<int>(-50, 50));
+  public static readonly FakeConVar<int> CV_INNO_ON_DETECTIVE_VICTIM_INNOCENT = new(
+    "css_ttt_karma_inno_on_detective_victim_innocent",
+    "Karma delta for a Detective victim when killed by an Innocent (or Detective) without provocation", 1, ConVarFlags.FCVAR_NONE,
+    new RangeValidator<int>(-50, 50));
+  public static readonly FakeConVar<int> CV_INNO_ON_DETECTIVE_VICTIM_GUILTY = new(
+    "css_ttt_karma_inno_on_detective_victim_guilty",
+    "Karma delta for a Detective victim when killed by an Innocent (or Detective) in retaliation", -1, ConVarFlags.FCVAR_NONE,
     new RangeValidator<int>(-50, 50));
 
   public static readonly FakeConVar<int> CV_KARMA_PER_ROUND = new(
@@ -93,21 +124,29 @@ public class CS2KarmaConfig : IStorage<KarmaConfig>, IPluginModule {
 
   public Task<KarmaConfig?> Load() {
     var cfg = new KarmaConfig {
-      DbString              = CV_DB_STRING.Value,
-      MinKarma              = CV_MIN_KARMA.Value,
-      DefaultKarma          = CV_DEFAULT_KARMA.Value,
-      CommandUponLowKarma   = CV_LOW_KARMA_COMMAND.Value,
-      KarmaTimeoutThreshold = CV_TIMEOUT_THRESHOLD.Value,
-      KarmaRoundTimeout     = CV_ROUND_TIMEOUT.Value,
-      KarmaWarningWindow    = TimeSpan.FromHours(CV_WARNING_WINDOW_HOURS.Value),
-      KarmaPerRound         = CV_KARMA_PER_ROUND.Value,
-      KarmaPerRoundWin      = CV_KARMA_PER_ROUND_WIN.Value,
-      INNO_ON_TRAITOR       = CV_INNO_ON_TRAITOR.Value,
-      TRAITOR_ON_DETECTIVE  = CV_TRAITOR_ON_DETECTIVE.Value,
-      INNO_ON_INNO_VICTIM   = CV_INNO_ON_INNO_VICTIM.Value,
-      INNO_ON_INNO          = CV_INNO_ON_INNO.Value,
-      TRAITOR_ON_TRAITOR    = CV_TRAITOR_ON_TRAITOR.Value,
-      INNO_ON_DETECTIVE     = CV_INNO_ON_DETECTIVE.Value
+      DbString                            = CV_DB_STRING.Value,
+      MinKarma                            = CV_MIN_KARMA.Value,
+      DefaultKarma                        = CV_DEFAULT_KARMA.Value,
+      CommandUponLowKarma                 = CV_LOW_KARMA_COMMAND.Value,
+      KarmaTimeoutThreshold               = CV_TIMEOUT_THRESHOLD.Value,
+      KarmaRoundTimeout                   = CV_ROUND_TIMEOUT.Value,
+      KarmaWarningWindow                  = TimeSpan.FromHours(CV_WARNING_WINDOW_HOURS.Value),
+      KarmaPerRound                       = CV_KARMA_PER_ROUND.Value,
+      KarmaPerRoundWin                    = CV_KARMA_PER_ROUND_WIN.Value,
+      INNO_ON_TRAITOR                     = CV_INNO_ON_TRAITOR.Value,
+      TRAITOR_ON_DETECTIVE                = CV_TRAITOR_ON_DETECTIVE.Value,
+      INNO_ON_INNO_INNOCENT               = CV_INNO_ON_INNO_INNOCENT.Value,
+      INNO_ON_INNO_GUILTY                 = CV_INNO_ON_INNO_GUILTY.Value,
+      INNO_ON_INNO_VICTIM_INNOCENT        = CV_INNO_ON_INNO_VICTIM_INNOCENT.Value,
+      INNO_ON_INNO_VICTIM_GUILTY          = CV_INNO_ON_INNO_VICTIM_GUILTY.Value,
+      TRAITOR_ON_TRAITOR_INNOCENT         = CV_TRAITOR_ON_TRAITOR_INNOCENT.Value,
+      TRAITOR_ON_TRAITOR_GUILTY           = CV_TRAITOR_ON_TRAITOR_GUILTY.Value,
+      TRAITOR_ON_TRAITOR_VICTIM_INNOCENT  = CV_TRAITOR_ON_TRAITOR_VICTIM_INNOCENT.Value,
+      TRAITOR_ON_TRAITOR_VICTIM_GUILTY    = CV_TRAITOR_ON_TRAITOR_VICTIM_GUILTY.Value,
+      INNO_ON_DETECTIVE_INNOCENT          = CV_INNO_ON_DETECTIVE_INNOCENT.Value,
+      INNO_ON_DETECTIVE_GUILTY            = CV_INNO_ON_DETECTIVE_GUILTY.Value,
+      INNO_ON_DETECTIVE_VICTIM_INNOCENT   = CV_INNO_ON_DETECTIVE_VICTIM_INNOCENT.Value,
+      INNO_ON_DETECTIVE_VICTIM_GUILTY     = CV_INNO_ON_DETECTIVE_VICTIM_GUILTY.Value
     };
 
     return Task.FromResult<KarmaConfig?>(cfg);
