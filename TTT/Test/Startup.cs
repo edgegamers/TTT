@@ -39,6 +39,7 @@ public class Startup {
     services.AddScoped<IPermissionManager, FakePermissionManager>();
     services.AddScoped<ICommandManager, CommandManager>();
     services.AddScoped<IShop, TTT.Shop.Shop>();
+    services.AddScoped<IKarmaUpdateManager, KarmaUpdateManager>();
     services.AddScoped<IKarmaService, MemoryKarmaStorage>();
 
     services.AddModBehavior<GenericInitTester>();
