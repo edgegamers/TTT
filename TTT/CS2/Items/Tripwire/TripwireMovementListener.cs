@@ -129,24 +129,24 @@ public class TripwireMovementListener(IServiceProvider provider)
       killedWithTripwire[player.Id] = instance;
       ev = new PlayerDeathEvent(player).WithKiller(instance.owner)
        .WithWeapon("[Tripwire]");
+      
+      messenger.Debug("config.FriendlyFireKarmaPenaltyTime: {0}", config.FriendlyFireKarmaPenaltyTime);
+      messenger.Debug("Player {0} roles: {1}", player.Name, string.Join(", ", Roles.GetRoles(player).Select(r => r.GetType().Name)));
+      messenger.Debug("Instance placed at: {0}, time since placed: {1} seconds", instance.placedAt, (DateTime.Now - instance.placedAt).TotalSeconds);
+      if (
+        config.FriendlyFireKarmaPenaltyTime != -1
+        && Roles.GetRoles(player).Any(r => r is TraitorRole)
+        && (DateTime.Now - instance.placedAt).TotalSeconds
+        > config.FriendlyFireKarmaPenaltyTime
+      ) {
+        messenger.Debug("Ignoring karma penalty for player {0} due to friendly fire time threshold", player.Name);
+        messenger.Debug("KarmaUpdateManager ID: {0}", karmaUpdateManager.GetHashCode());
+        karmaUpdateManager.IgnoreEvent(ev);
+      }
     } else {
       ev = new PlayerDamagedEvent(player, instance.owner, damage) {
         Weapon = "[Tripwire]"
       };
-    }
-    
-    messenger.Debug("config.FriendlyFireKarmaPenaltyTime: {0}", config.FriendlyFireKarmaPenaltyTime);
-    messenger.Debug("Player {0} roles: {1}", player.Name, string.Join(", ", Roles.GetRoles(player).Select(r => r.GetType().Name)));
-    messenger.Debug("Instance placed at: {0}, time since placed: {1} seconds", instance.placedAt, (DateTime.Now - instance.placedAt).TotalSeconds);
-    if (
-      config.FriendlyFireKarmaPenaltyTime != -1
-      && Roles.GetRoles(player).Any(r => r is TraitorRole)
-      && (DateTime.Now - instance.placedAt).TotalSeconds
-      > config.FriendlyFireKarmaPenaltyTime
-    ) {
-      messenger.Debug("Ignoring karma penalty for player {0} due to friendly fire time threshold", player.Name);
-      messenger.Debug("KarmaUpdateManager ID: {0}", karmaUpdateManager.GetHashCode());
-      karmaUpdateManager.IgnoreEvent(ev);
     }
 
     Bus.Dispatch(ev);
