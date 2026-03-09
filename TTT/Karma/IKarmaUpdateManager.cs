@@ -13,5 +13,5 @@ public interface IKarmaUpdateManager {
   public void IgnoreIf(Func<KarmaUpdate, bool> predicate);
   public void ClearIgnores();
 
-  public Task ProcessUpdatesAsync();
+  public Task ProcessUpdatesAsync(bool clearIgnoreOnComplete = true);
 }
