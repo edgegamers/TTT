@@ -32,6 +32,11 @@ public class CS2TripwireConfig : IStorage<TripwireConfig>, IPluginModule {
   public static readonly FakeConVar<bool> CV_FF_TRIGGERS = new(
     "css_ttt_shop_tripwire_friendlyfire_triggers",
     "Whether Tripwires can be triggered by teammates", true);
+  
+  public static readonly FakeConVar<int> CV_FF_KARMA_PENALTY_TIME = new(
+    "css_ttt_shop_tripwire_friendlyfire_karma_penalty_time",
+    "Seconds after placing a tripmine that teamkills can influence karma, otherwise ignored. Use -1 to always influence.",
+    15, ConVarFlags.FCVAR_NONE, new RangeValidator<int>(-1, 300));
 
   public static readonly FakeConVar<float> CV_MAX_DISTANCE_SQUARED = new(
     "css_ttt_shop_tripwire_max_distance_squared",
@@ -99,6 +104,7 @@ public class CS2TripwireConfig : IStorage<TripwireConfig>, IPluginModule {
       FalloffDelay = CV_FALLOFF_DELAY.Value,
       FriendlyFireMultiplier = CV_FF_MULTIPLIER.Value,
       FriendlyFireTriggers = CV_FF_TRIGGERS.Value,
+      FriendlyFireKarmaPenaltyTime = CV_FF_KARMA_PENALTY_TIME.Value,
       MaxPlacementDistanceSquared = CV_MAX_DISTANCE_SQUARED.Value,
       TripwireInitiationTime = TimeSpan.FromSeconds(CV_INITIATION_TIME.Value),
       TripwireSizeSquared = CV_SIZE_SQUARED.Value,
