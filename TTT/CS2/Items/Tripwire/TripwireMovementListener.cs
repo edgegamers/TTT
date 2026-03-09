@@ -25,8 +25,8 @@ namespace TTT.CS2.Items.Tripwire;
 
 public class TripwireMovementListener(IServiceProvider provider)
   : BaseListener(provider), IPluginModule, ITripwireActivator {
-  private readonly KarmaUpdateManager karmaUpdateManager =
-    provider.GetRequiredService<KarmaUpdateManager>();
+  private readonly IKarmaUpdateManager karmaUpdateManager =
+    provider.GetRequiredService<IKarmaUpdateManager>();
   private readonly IPlayerConverter<CCSPlayerController> converter =
     provider.GetRequiredService<IPlayerConverter<CCSPlayerController>>();
 

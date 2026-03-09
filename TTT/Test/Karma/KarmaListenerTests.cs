@@ -19,6 +19,7 @@ public class KarmaListenerTests {
   private readonly IGameManager games;
   private readonly IKarmaService karma;
   private readonly IPlayerFinder players;
+  private readonly IKarmaUpdateManager karmaUpdateManager;
   private readonly IRoleAssigner roles;
 
   private readonly IList<IRole> roleSet;
@@ -28,6 +29,7 @@ public class KarmaListenerTests {
     roles   = provider.GetRequiredService<IRoleAssigner>();
     bus     = provider.GetRequiredService<IEventBus>();
     karma   = provider.GetRequiredService<IKarmaService>();
+    karmaUpdateManager = provider.GetRequiredService<IKarmaUpdateManager>();
     players = provider.GetRequiredService<IPlayerFinder>();
     roleSet = new List<IRole> {
       new InnocentRole(provider),

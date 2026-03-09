@@ -1,11 +1,12 @@
 ﻿using System.Collections.Concurrent;
+using Microsoft.Extensions.DependencyInjection;
 using TTT.API.Events;
 using TTT.API.Player;
 
 namespace TTT.Karma;
 
-public class KarmaUpdateManager {
-  private readonly IKarmaService karmaService;
+public sealed class KarmaUpdateManager(IServiceProvider provider) : IKarmaUpdateManager {
+  private readonly IKarmaService karmaService = provider.GetRequiredService<IKarmaService>();
   private readonly ConcurrentQueue<KarmaUpdate> updateQueue = new();
   private readonly HashSet<string> ignoredReasons = [];
   private readonly HashSet<Event> ignoredSourceEvents = [];
