@@ -126,19 +126,19 @@ public class TripwireMovementListener(IServiceProvider provider)
       killedWithTripwire[player.Id] = instance;
       ev = new PlayerDeathEvent(player).WithKiller(instance.owner)
        .WithWeapon("[Tripwire]");
+      
+      if (
+        config.FriendlyFireKarmaPenaltyTime != -1
+        && Roles.GetRoles(player).Any(r => r is TraitorRole)
+        && (DateTime.Now - instance.placedAt).TotalSeconds
+        > config.FriendlyFireKarmaPenaltyTime
+      ) {
+        karmaUpdateManager.IgnoreEvent(ev);
+      }
     } else {
       ev = new PlayerDamagedEvent(player, instance.owner, damage) {
         Weapon = "[Tripwire]"
       };
-    }
-    
-    if (
-      config.FriendlyFireKarmaPenaltyTime != -1
-      && Roles.GetRoles(player).Any(r => r is TraitorRole)
-      && (DateTime.Now - instance.placedAt).TotalSeconds
-      > config.FriendlyFireKarmaPenaltyTime
-    ) {
-      karmaUpdateManager.IgnoreEvent(ev);
     }
 
     Bus.Dispatch(ev);
