@@ -9,5 +9,6 @@ public static class KarmaServiceCollection {
     collection.AddModBehavior<IKarmaService, DictionaryKarmaStorage>();
     collection.AddModBehavior<KarmaListener>();
     collection.AddModBehavior<KarmaCommand>();
+    collection.AddSingleton<KarmaUpdateManager>();
   }
 }

@@ -2,7 +2,6 @@ using JetBrains.Annotations;
 using Microsoft.Extensions.DependencyInjection;
 using TTT.API.Events;
 using TTT.API.Game;
-using TTT.API.Player;
 using TTT.API.Role;
 using TTT.API.Storage;
 using TTT.Game.Events.Game;
@@ -19,13 +18,10 @@ public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
   private readonly IGameManager games =
     provider.GetRequiredService<IGameManager>();
 
-  private readonly IKarmaService karma =
-    provider.GetRequiredService<IKarmaService>();
-
-  private readonly Dictionary<IPlayer, int> queuedKarmaUpdates = new();
-
   private readonly IRoleAssigner roles =
     provider.GetRequiredService<IRoleAssigner>();
+  
+  private readonly KarmaUpdateManager karmaUpdateManager = provider.GetRequiredService<KarmaUpdateManager>();
 
   public bool GiveKarmaOnRoundEnd = true;
 
@@ -38,6 +34,7 @@ public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
   [EventHandler]
   [UsedImplicitly]
   public void OnRoundStart(GameStateUpdateEvent ev) {
+    karmaUpdateManager.ClearIgnores();
     badKills.Clear();
     firstDamage.Clear();
   }
@@ -128,11 +125,9 @@ public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
     }
 
     killerKarmaDelta *= attackerKarmaMultiplier;
-
-    queuedKarmaUpdates[killer] = queuedKarmaUpdates.GetValueOrDefault(killer, 0)
-      + killerKarmaDelta;
-    queuedKarmaUpdates[victim] = queuedKarmaUpdates.GetValueOrDefault(victim, 0)
-      + victimKarmaDelta;
+    
+    karmaUpdateManager.QueueUpdate(killer, killerKarmaDelta, ev, $"Killed {victimRole.Name}");
+    karmaUpdateManager.QueueUpdate(victim, victimKarmaDelta, ev, $"Killed by {killerRole.Name}");
   }
 
   [UsedImplicitly]
@@ -144,20 +139,10 @@ public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
     if (GiveKarmaOnRoundEnd)
       foreach (var player in ev.Game.Players)
         if (Roles.GetRoles(player).Any(r => r.GetType() == winner?.GetType()))
-          queuedKarmaUpdates[player] =
-            queuedKarmaUpdates.GetValueOrDefault(player, 0)
-            + config.KarmaPerRoundWin;
+          karmaUpdateManager.QueueUpdate(player, config.KarmaPerRoundWin, ev, "Round Won");
         else
-          queuedKarmaUpdates[player] =
-            queuedKarmaUpdates.GetValueOrDefault(player, 0)
-            + config.KarmaPerRound;
+          karmaUpdateManager.QueueUpdate(player, config.KarmaPerRound, ev, "Round Played");
 
-    foreach (var (player, karmaDelta) in queuedKarmaUpdates)
-      Task.Run(async () => {
-        var newKarma = await karma.Load(player) + karmaDelta;
-        await karma.Write(player, newKarma);
-      });
-
-    queuedKarmaUpdates.Clear();
+    Task.Run(async () => await karmaUpdateManager.ProcessUpdatesAsync());
   }
 }
