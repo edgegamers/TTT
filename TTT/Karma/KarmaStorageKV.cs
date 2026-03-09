@@ -7,7 +7,7 @@ using TTT.Karma.Events;
 
 namespace TTT.Karma;
 
-public sealed class DictionaryKarmaStorage(IServiceProvider provider) : IKarmaService {
+public sealed class KarmaStorageKV(IServiceProvider provider) : IKarmaService {
   private readonly ConcurrentDictionary<string, int> data = new();
   private readonly IEventBus? eventBus = provider.GetService<IEventBus>();
 
