@@ -16,6 +16,10 @@ public sealed class KarmaUpdateManager(IServiceProvider provider) : IKarmaUpdate
   
   public void QueueUpdate(KarmaUpdate update) => updateQueue.Enqueue(update);
   public void QueueUpdate(IPlayer player, int delta, Event? sourceEvent = null, string? reason = "Unknown") {
+    messenger.Debug("Queueing karma update for {0}: {1} (reason: {2}, source event: {3})",
+      player.Name, delta, reason ?? "null", sourceEvent?.GetType().Name ?? "null");
+    messenger.Debug("Current ignored reasons: {0}", string.Join(", ", ignoredReasons));
+    messenger.Debug("Current ignored source events: {0} ({1})", string.Join(", ", ignoredSourceEvents.Select(e => e.GetType().Name + " (ID: " + e.GetHashCode() + ")")), ignoredSourceEvents.Count);
     var update = new KarmaUpdate(player, delta, sourceEvent, reason);
     QueueUpdate(update);
   }
@@ -26,6 +30,8 @@ public sealed class KarmaUpdateManager(IServiceProvider provider) : IKarmaUpdate
   }
 
   public void IgnoreEvent(Event sourceEvent) {
+    messenger.Debug("Adding ignored source event: {0} (ID: {1})", sourceEvent.GetType().Name, sourceEvent.GetHashCode());
+    messenger.Debug("Current ignored source events: {0} ({1})", string.Join(", ", ignoredSourceEvents.Select(e => e.GetType().Name + " (ID: " + e.GetHashCode() + ")")), ignoredSourceEvents.Count);
     if (!ignoredSourceEvents.Contains(sourceEvent))
       ignoredSourceEvents.Add(sourceEvent); 
   }
