@@ -2,7 +2,7 @@ using JetBrains.Annotations;
 using Microsoft.Extensions.DependencyInjection;
 using TTT.API.Events;
 using TTT.API.Game;
-using TTT.API.Player;
+using TTT.API.Messages;
 using TTT.API.Role;
 using TTT.API.Storage;
 using TTT.Game.Events.Game;
@@ -14,17 +14,16 @@ namespace TTT.Karma;
 
 public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
   private readonly Dictionary<string, int> badKills = new();
+  private readonly List<(string, string)> firstDamage = new();
 
+  private readonly IMessenger messenger = 
+    provider.GetRequiredService<IMessenger>();
   private readonly IGameManager games =
     provider.GetRequiredService<IGameManager>();
-
-  private readonly IKarmaService karma =
-    provider.GetRequiredService<IKarmaService>();
-
-  private readonly Dictionary<IPlayer, int> queuedKarmaUpdates = new();
-
   private readonly IRoleAssigner roles =
     provider.GetRequiredService<IRoleAssigner>();
+  private readonly IKarmaUpdateManager karmaUpdateManager = 
+    provider.GetRequiredService<IKarmaUpdateManager>();
 
   public bool GiveKarmaOnRoundEnd = true;
 
@@ -36,7 +35,28 @@ public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
 
   [EventHandler]
   [UsedImplicitly]
-  public void OnRoundStart(GameStateUpdateEvent ev) { badKills.Clear(); }
+  public void OnRoundStart(GameStateUpdateEvent ev) {
+    badKills.Clear();
+    firstDamage.Clear();
+  }
+
+  [EventHandler]
+  [UsedImplicitly]
+  public void OnHurt(PlayerDamagedEvent ev) {
+    if (games.ActiveGame is not { State: State.IN_PROGRESS }) return;
+
+    var victim   = ev.Player;
+    var attacker = ev.Attacker;
+    if (attacker == null) return;
+
+    // If the victim already damaged the attacker, don't mark this as first damage.
+    if (firstDamage.Contains((victim.Id, attacker.Id))) return;
+    
+    // Otherwise, mark down that the attacker damaged the victim first.
+    var pairing = (attacker.Id, victim.Id);
+    if (!firstDamage.Contains(pairing))
+      firstDamage.Add(pairing);
+  }
 
   [EventHandler]
   [UsedImplicitly]
@@ -48,6 +68,14 @@ public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
 
     if (killer == null) return;
     if (victim.Id == killer.Id) return;
+    
+    var killerIsGuilty = firstDamage.Contains((killer.Id, victim.Id));
+    var victimIsGuilty = firstDamage.Contains((victim.Id, killer.Id));
+    // Assume killerIsGuilty if there is no damage info.
+    if (!killerIsGuilty && !victimIsGuilty) {
+      killerIsGuilty = true;
+      messenger.Debug("No damage info for kill of {0} by {1}, assuming killer is guilty", victim.Name, killer.Name);
+    }
 
     var victimRole = roles.GetRoles(victim).First();
     var killerRole = roles.GetRoles(killer).First();
@@ -58,37 +86,60 @@ public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
     var attackerKarmaMultiplier = 1;
 
     if (victimRole is TraitorRole == killerRole is TraitorRole) {
-      badKills[killer.Id]     = badKills.GetValueOrDefault(killer.Id, 0) + 1;
-      attackerKarmaMultiplier = badKills[killer.Id];
+      if (killerIsGuilty)
+        badKills[killer.Id] = badKills.GetValueOrDefault(killer.Id, 0) + 1;
+      attackerKarmaMultiplier = badKills.GetValueOrDefault(killer.Id, 1);
     }
 
     switch (victimRole) {
       case InnocentRole when killerRole is TraitorRole:
         return;
       case InnocentRole:
-        victimKarmaDelta = config.INNO_ON_INNO_VICTIM;
-        killerKarmaDelta = config.INNO_ON_INNO;
+        victimKarmaDelta = victimIsGuilty ?
+          config.INNO_ON_INNO_VICTIM_GUILTY :
+          config.INNO_ON_INNO_VICTIM_INNOCENT;
+        killerKarmaDelta = killerIsGuilty ?
+          config.INNO_ON_INNO_GUILTY :
+          config.INNO_ON_INNO_INNOCENT;
         break;
       case TraitorRole:
-        killerKarmaDelta = killerRole is TraitorRole ?
-          config.TRAITOR_ON_TRAITOR :
-          config.INNO_ON_TRAITOR;
+        if (killerRole is TraitorRole) {
+          victimKarmaDelta = victimIsGuilty ?
+            config.TRAITOR_ON_TRAITOR_VICTIM_GUILTY :
+            config.TRAITOR_ON_TRAITOR_VICTIM_INNOCENT;
+          killerKarmaDelta = killerIsGuilty ?
+            config.TRAITOR_ON_TRAITOR_GUILTY :
+            config.TRAITOR_ON_TRAITOR_INNOCENT; 
+        } else killerKarmaDelta = config.INNO_ON_TRAITOR;
         break;
       case DetectiveRole:
-        killerKarmaDelta = killerRole is TraitorRole ?
-          config.TRAITOR_ON_DETECTIVE :
-          config.INNO_ON_DETECTIVE;
-        if (killerRole is DetectiveRole)
-          victimKarmaDelta = config.INNO_ON_INNO_VICTIM;
+        if (killerRole is TraitorRole) killerKarmaDelta = config.TRAITOR_ON_DETECTIVE;
+        else {
+          victimKarmaDelta = victimIsGuilty ?
+            config.INNO_ON_DETECTIVE_VICTIM_GUILTY :
+            config.INNO_ON_DETECTIVE_VICTIM_INNOCENT;
+          killerKarmaDelta = killerIsGuilty ?
+            config.INNO_ON_DETECTIVE_GUILTY :
+            config.INNO_ON_DETECTIVE_INNOCENT;
+        }
         break;
     }
 
     killerKarmaDelta *= attackerKarmaMultiplier;
 
-    queuedKarmaUpdates[killer] = queuedKarmaUpdates.GetValueOrDefault(killer, 0)
-      + killerKarmaDelta;
-    queuedKarmaUpdates[victim] = queuedKarmaUpdates.GetValueOrDefault(victim, 0)
-      + victimKarmaDelta;
+    var killerSuffix = "";
+    var victimSuffix = "";
+    if (killerKarmaDelta < 0 || victimKarmaDelta < 0) {
+      if (killerIsGuilty) {
+        killerSuffix = " [AT FAULT]";
+        victimSuffix = " [VICTIM]";
+      } else if (victimIsGuilty) {
+        killerSuffix = " [VICTIM]";
+        victimSuffix = " [AT FAULT]";
+      }
+    }
+    karmaUpdateManager.QueueUpdate(killer, killerKarmaDelta, ev, $"Killed {victimRole.Name}{killerSuffix}");
+    karmaUpdateManager.QueueUpdate(victim, victimKarmaDelta, ev, $"Killed by {killerRole.Name}{victimSuffix}");
   }
 
   [UsedImplicitly]
@@ -100,20 +151,10 @@ public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
     if (GiveKarmaOnRoundEnd)
       foreach (var player in ev.Game.Players)
         if (Roles.GetRoles(player).Any(r => r.GetType() == winner?.GetType()))
-          queuedKarmaUpdates[player] =
-            queuedKarmaUpdates.GetValueOrDefault(player, 0)
-            + config.KarmaPerRoundWin;
+          karmaUpdateManager.QueueUpdate(player, config.KarmaPerRoundWin, ev, "Round Won");
         else
-          queuedKarmaUpdates[player] =
-            queuedKarmaUpdates.GetValueOrDefault(player, 0)
-            + config.KarmaPerRound;
+          karmaUpdateManager.QueueUpdate(player, config.KarmaPerRound, ev, "Round Played");
 
-    foreach (var (player, karmaDelta) in queuedKarmaUpdates)
-      Task.Run(async () => {
-        var newKarma = await karma.Load(player) + karmaDelta;
-        await karma.Write(player, newKarma);
-      });
-
-    queuedKarmaUpdates.Clear();
+    Task.Run(async () => await karmaUpdateManager.ProcessUpdatesAsync());
   }
 }

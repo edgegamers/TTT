@@ -4,7 +4,7 @@ using TTT.API.Events;
 using TTT.API.Game;
 using TTT.API.Player;
 using TTT.Game.Events.Player;
-using TTT.Shop.Items;
+using TTT.Shop.Items.Detective.OneShotDeagle;
 using Xunit;
 
 namespace TTT.Test.Shop.Items;
@@ -29,7 +29,7 @@ public class DeagleTests {
     victim     = finder.AddPlayer(TestPlayer.Random());
     survivor   = finder.AddPlayer(TestPlayer.Random());
 
-    bus.RegisterListener(new DeagleDamageListener(provider));
+    bus.RegisterListener(new OneShotDeagleDamageListener(provider));
     bus.RegisterListener(new TestDamageApplier(provider));
     games.CreateGame()?.Start();
   }

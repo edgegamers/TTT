@@ -6,6 +6,7 @@ public record HealthStationConfig : StationConfig {
   public virtual string UseSound { get; init; } = "sounds/buttons/blip1";
 
   public override int Price { get; init; } = 50;
+  public override int MaxPurchases { get; init; } = -1;
 
   public override TimeSpan HealthInterval { get; init; } =
     TimeSpan.FromSeconds(2);

@@ -146,7 +146,7 @@ public class TripwireItem(IServiceProvider provider)
     var beam = createBeamEnt(start, end);
     if (beam == null) return;
 
-    var instance = new TripwireInstance(owner, beam, prop, start, end);
+    var instance = new TripwireInstance(owner, beam, prop, start, end, DateTime.UtcNow);
     ActiveTripwires.Add(instance);
   }
 

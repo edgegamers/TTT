@@ -54,10 +54,21 @@ public record KarmaConfig {
 
   public int INNO_ON_TRAITOR { get; init; } = 5;
   public int TRAITOR_ON_DETECTIVE { get; init; } = 1;
-  public int INNO_ON_INNO_VICTIM { get; init; } = -1;
-  public int INNO_ON_INNO { get; init; } = -4;
-  public int TRAITOR_ON_TRAITOR { get; init; } = -5;
-  public int INNO_ON_DETECTIVE { get; init; } = -6;
+  
+  public int INNO_ON_INNO_INNOCENT { get; init; } = 0;
+  public int INNO_ON_INNO_GUILTY { get; init; } = -4;
+  public int INNO_ON_INNO_VICTIM_INNOCENT { get; init; } = 1;
+  public int INNO_ON_INNO_VICTIM_GUILTY { get; init; } = -2;
+  
+  public int TRAITOR_ON_TRAITOR_INNOCENT { get; init; } = -3;
+  public int TRAITOR_ON_TRAITOR_GUILTY { get; init; } = -5;
+  public int TRAITOR_ON_TRAITOR_VICTIM_INNOCENT { get; init; } = 1;
+  public int TRAITOR_ON_TRAITOR_VICTIM_GUILTY { get; init; } = -2;
+  
+  public int INNO_ON_DETECTIVE_INNOCENT { get; init; } = -4;
+  public int INNO_ON_DETECTIVE_GUILTY { get; init; } = -6;
+  public int INNO_ON_DETECTIVE_VICTIM_INNOCENT { get; init; } = 1;
+  public int INNO_ON_DETECTIVE_VICTIM_GUILTY { get; init; } = -1;
 
   public int MaxKarma(IPlayer? player) { return 100; }
 }

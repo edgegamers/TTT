@@ -9,6 +9,7 @@ public record DamageStationConfig : StationConfig {
   public virtual string UseSound { get; init; } = "sounds/buttons/blip2";
 
   public override int Price { get; init; } = 65;
+  public override int MaxPurchases { get; init; } = 3;
 
   public override Color GetColor(float health) {
     // 100% health = white

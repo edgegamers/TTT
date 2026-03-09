@@ -1,4 +1,5 @@
 ﻿using CounterStrikeSharp.API.Core;
+using Microsoft.Extensions.DependencyInjection;
 using TTT.API;
 using TTT.API.Command;
 using TTT.API.Player;
@@ -6,8 +7,11 @@ using TTT.API.Player;
 namespace TTT.CS2.Command.Test;
 
 public class TestCommand(IServiceProvider provider) : ICommand, IPluginModule {
+  private readonly IPermissionManager permissions = provider.GetRequiredService<IPermissionManager>();
   private readonly IDictionary<string, ICommand> subCommands =
     new Dictionary<string, ICommand>(StringComparer.OrdinalIgnoreCase);
+
+  public bool MustBeOnMainThread => true;
 
   public void Dispose() { }
 
@@ -36,7 +40,7 @@ public class TestCommand(IServiceProvider provider) : ICommand, IPluginModule {
     Execute(IOnlinePlayer? executor, ICommandInfo info) {
     if (executor == null) return Task.FromResult(CommandResult.PLAYER_ONLY);
 
-    if (executor.Id != "76561198333588297")
+    if (!permissions.HasFlags(executor, "@css/root"))
       return Task.FromResult(CommandResult.NO_PERMISSION);
 
     if (info.ArgCount == 1) {

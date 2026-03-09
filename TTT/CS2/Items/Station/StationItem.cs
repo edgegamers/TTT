@@ -8,17 +8,22 @@ using Microsoft.Extensions.DependencyInjection;
 using ShopAPI;
 using ShopAPI.Configs;
 using TTT.API;
+using TTT.API.Events;
+using TTT.API.Game;
 using TTT.API.Player;
 using TTT.API.Role;
 using TTT.CS2.Extensions;
 using TTT.CS2.RayTrace.Class;
+using TTT.Game.Events.Game;
 
 namespace TTT.CS2.Items.Station;
 
 public abstract class StationItem<T>(IServiceProvider provider,
   StationConfig config)
-  : RoleRestrictedItem<T>(provider), IPluginModule where T : IRole {
+  : RoleRestrictedItem<T>(provider), IListener, IPluginModule where T : IRole {
   protected readonly StationConfig _Config = config;
+
+  private readonly Dictionary<string, int> purchaseCounts = new();
 
   protected readonly IPlayerConverter<CCSPlayerController> Converter =
     provider.GetRequiredService<IPlayerConverter<CCSPlayerController>>();
@@ -112,6 +117,9 @@ public abstract class StationItem<T>(IServiceProvider provider,
   }
 
   public override void OnPurchase(IOnlinePlayer player) {
+    purchaseCounts.TryGetValue(player.Id, out var purchases);
+    purchaseCounts[player.Id] = purchases + 1;
+    
     Server.NextWorldUpdate(() => {
       var prop =
         Utilities.CreateEntityByName<CPhysicsPropMultiplayer>(
@@ -140,6 +148,21 @@ public abstract class StationItem<T>(IServiceProvider provider,
 
       prop.Teleport(spawnPos);
     });
+  }
+
+  public override PurchaseResult CanPurchase(IOnlinePlayer player) {
+    if (!purchaseCounts.TryGetValue(player.Id, out var purchases))
+      return base.CanPurchase(player);
+    return (_Config.MaxPurchases == -1 || purchases < _Config.MaxPurchases) ?
+      base.CanPurchase(player) :
+      PurchaseResult.ALREADY_OWNED;
+  }
+
+  [UsedImplicitly]
+  [EventHandler]
+  public void OnGameState(GameStateUpdateEvent ev) {
+    if (ev.NewState != State.FINISHED) return;
+    purchaseCounts.Clear();
   }
 
   abstract protected void onInterval();
