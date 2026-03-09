@@ -8,7 +8,7 @@ namespace TTT.Karma;
 
 public sealed class KarmaUpdateManager(IServiceProvider provider) : IKarmaUpdateManager {
   private readonly IKarmaService karmaService = provider.GetRequiredService<IKarmaService>();
-  protected readonly IMessenger messenger = provider.GetRequiredService<IMessenger>();
+  private readonly IMessenger messenger = provider.GetRequiredService<IMessenger>();
   private readonly ConcurrentQueue<KarmaUpdate> updateQueue = new();
   private readonly HashSet<string> ignoredReasons = [];
   private readonly HashSet<Event> ignoredSourceEvents = [];
