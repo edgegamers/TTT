@@ -10,8 +10,8 @@ public sealed class KarmaUpdateManager(IServiceProvider provider) : IKarmaUpdate
   private readonly IKarmaService karmaService = provider.GetRequiredService<IKarmaService>();
   private readonly IMessenger messenger = provider.GetRequiredService<IMessenger>();
   private readonly ConcurrentQueue<KarmaUpdate> updateQueue = new();
-  private readonly HashSet<string> ignoredReasons = [];
-  private readonly HashSet<Event> ignoredSourceEvents = [];
+  private readonly List<string> ignoredReasons = [];
+  private readonly List<Event> ignoredSourceEvents = [];
   private readonly List<Func<KarmaUpdate, bool>> ignorePredicates = [];
   
   public void QueueUpdate(KarmaUpdate update) => updateQueue.Enqueue(update);
@@ -20,9 +20,20 @@ public sealed class KarmaUpdateManager(IServiceProvider provider) : IKarmaUpdate
     QueueUpdate(update);
   }
 
-  public void IgnoreReason(string reason) => ignoredReasons.Add(reason);
-  public void IgnoreEvent(Event sourceEvent) => ignoredSourceEvents.Add(sourceEvent);
-  public void IgnoreIf(Func<KarmaUpdate, bool> predicate) => ignorePredicates.Add(predicate);
+  public void IgnoreReason(string reason) {
+    if (!ignoredReasons.Contains(reason))
+      ignoredReasons.Add(reason);
+  }
+
+  public void IgnoreEvent(Event sourceEvent) {
+    if (!ignoredSourceEvents.Contains(sourceEvent))
+      ignoredSourceEvents.Add(sourceEvent); 
+  }
+
+  public void IgnoreIf(Func<KarmaUpdate, bool> predicate) {
+    if (!ignorePredicates.Contains(predicate))
+      ignorePredicates.Add(predicate);    
+  }
   public void ClearIgnores() {
     ignoredReasons.Clear();
     ignoredSourceEvents.Clear();
