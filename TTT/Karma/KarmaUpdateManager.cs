@@ -1,12 +1,14 @@
 ﻿using System.Collections.Concurrent;
 using Microsoft.Extensions.DependencyInjection;
 using TTT.API.Events;
+using TTT.API.Messages;
 using TTT.API.Player;
 
 namespace TTT.Karma;
 
 public sealed class KarmaUpdateManager(IServiceProvider provider) : IKarmaUpdateManager {
   private readonly IKarmaService karmaService = provider.GetRequiredService<IKarmaService>();
+  protected readonly IMessenger messenger = provider.GetRequiredService<IMessenger>();
   private readonly ConcurrentQueue<KarmaUpdate> updateQueue = new();
   private readonly HashSet<string> ignoredReasons = [];
   private readonly HashSet<Event> ignoredSourceEvents = [];
@@ -32,6 +34,8 @@ public sealed class KarmaUpdateManager(IServiceProvider provider) : IKarmaUpdate
     
     var finalDeltas = new Dictionary<IPlayer, int>();
     while (updateQueue.TryDequeue(out var update)) {
+      messenger.Debug("Processing karma update for {0}: {1} (reason: {2}, source event: {3})",
+        update.Player.Name, update.Delta, update.Reason ?? "null", update.SourceEvent?.GetType().Name ?? "null");
       if (update.Reason != null && ignoredReasons.Contains(update.Reason))
         continue;
       if (update.SourceEvent != null && ignoredSourceEvents.Contains(update.SourceEvent))
@@ -40,6 +44,7 @@ public sealed class KarmaUpdateManager(IServiceProvider provider) : IKarmaUpdate
         continue;
       finalDeltas[update.Player] =
         finalDeltas.GetValueOrDefault(update.Player, 0) + update.Delta;
+      messenger.Debug("Queued karma update for {0}: total delta now {1}", update.Player.Name, finalDeltas[update.Player]);
     }
     
     foreach (var (player, delta) in finalDeltas) {
