@@ -26,8 +26,4 @@
     <Folder Include="RayTrace\"/>
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Update="CounterStrikeSharp.API" Version="1.0.364" />
-  </ItemGroup>
-
 </Project>
