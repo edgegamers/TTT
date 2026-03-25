@@ -54,7 +54,7 @@ public static class RoundUtil {
       return;
     // TODO: Figure out what these params do
     // TerminateRoundFunc.Invoke(gameRules.GameRules.Handle, 5f, reason, 0, 0);
-    VirtualFunctions.TerminateRoundFunc.Invoke(gameRules.GameRules.Handle,
+    VirtualFunctions.TerminateRoundFuncLinux.Invoke(gameRules.GameRules.Handle,
       reason, 5f, 0, 0);
   }
 
