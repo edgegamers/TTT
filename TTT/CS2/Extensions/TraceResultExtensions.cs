@@ -9,17 +9,16 @@ public static class TraceResultExtensions {
   {
     entity = null;
 
-    if (!trace.DidHit || trace.HitEntity == IntPtr.Zero) return false;
-    
+    if (!trace.DidHit || trace.HitEntity == 0) return false;
+
     var baseEntity = new CEntityInstance(trace.HitEntity);
     if (!baseEntity.IsValid) return false;
 
-    var designerName = baseEntity.DesignerName;
-    if (string.IsNullOrWhiteSpace(designerName)) return false;
+    if (string.IsNullOrWhiteSpace(baseEntity.DesignerName)) return false;
 
-    if (!designerName.Contains(designerNameContains, StringComparison.OrdinalIgnoreCase))
+    if (!baseEntity.DesignerName.Contains(designerNameContains, StringComparison.OrdinalIgnoreCase))
       return false;
-    
+
     try
     {
       var typedEntity = (T?)Activator.CreateInstance(typeof(T), trace.HitEntity);
