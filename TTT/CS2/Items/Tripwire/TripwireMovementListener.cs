@@ -4,6 +4,7 @@ using CounterStrikeSharp.API.Modules.Timers;
 using CounterStrikeSharp.API.Modules.Utils;
 using JetBrains.Annotations;
 using Microsoft.Extensions.DependencyInjection;
+using RayTraceAPI;
 using ShopAPI.Configs.Traitor;
 using TTT.API;
 using TTT.API.Events;
@@ -12,8 +13,7 @@ using TTT.API.Player;
 using TTT.API.Storage;
 using TTT.CS2.API.Items;
 using TTT.CS2.Extensions;
-using TTT.CS2.RayTrace.Class;
-using TTT.CS2.RayTrace.Enum;
+using TTT.CS2.ThirdParties.eGO;
 using TTT.Game.Events.Body;
 using TTT.Game.Events.Game;
 using TTT.Game.Events.Player;
@@ -27,6 +27,7 @@ public class TripwireMovementListener(IServiceProvider provider)
   : BaseListener(provider), IPluginModule, ITripwireActivator {
   private readonly IKarmaUpdateManager karmaUpdateManager =
     provider.GetRequiredService<IKarmaUpdateManager>();
+
   private readonly IPlayerConverter<CCSPlayerController> converter =
     provider.GetRequiredService<IPlayerConverter<CCSPlayerController>>();
 
@@ -61,9 +62,20 @@ public class TripwireMovementListener(IServiceProvider provider)
     if (tripwireTracker == null) return;
     foreach (var wire in new List<TripwireInstance>(tripwireTracker
      .ActiveTripwires)) {
-      var ray = TraceRay.TraceShape(wire.StartPos, wire.EndPos, Contents.Player,
-        wire.TripwireProp.Handle);
-      if (!ray.DidHit() || !ray.HitPlayer(out var player)) continue;
+      var direction = wire.EndPos - wire.StartPos;
+      var angle     = direction.Normalized().toAngle();
+
+      EgoApi.RAY_TRACE.Get()!.TraceShape(wire.StartPos, angle, null,
+        new TraceOptions {
+          DrawBeam         = 0,
+          InteractsWith    = (ulong)InteractionLayers.MASK_SHOT_FULL,
+          InteractsExclude = (ulong)InteractionLayers.NoDraw
+        }, out var result);
+
+      if (!result.DidHit
+        || !result.TryGetHitEntityByDesignerName<CCSPlayerController>("player",
+          out var player))
+        continue;
 
       if (!config.FriendlyFireTriggers && player != null) {
         var apiPlayer = converter.GetPlayer(player);
@@ -126,13 +138,11 @@ public class TripwireMovementListener(IServiceProvider provider)
       killedWithTripwire[player.Id] = instance;
       ev = new PlayerDeathEvent(player).WithKiller(instance.owner)
        .WithWeapon("[Tripwire]");
-      
-      if (
-        config.FriendlyFireKarmaPenaltyTime != -1
+
+      if (config.FriendlyFireKarmaPenaltyTime != -1
         && Roles.GetRoles(player).Any(r => r is TraitorRole)
         && (DateTime.Now - instance.placedAt).TotalSeconds
-        > config.FriendlyFireKarmaPenaltyTime
-      ) {
+        > config.FriendlyFireKarmaPenaltyTime) {
         karmaUpdateManager.IgnoreEvent(ev);
       }
     } else {

@@ -2,7 +2,6 @@
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Utils;
 using TTT.CS2.Extensions;
-using TTT.CS2.RayTrace.Class;
 using Vector = CounterStrikeSharp.API.Modules.Utils.Vector;
 
 namespace TTT.CS2.Hats;
@@ -48,7 +47,8 @@ public class TextSpawner : ITextSpawner {
     float zDist = 50) {
     if (player.Pawn.Value == null || player.Pawn.Value.AbsRotation == null)
       throw new Exception("Failed to get player rotation");
-    var eyes       = player.GetEyePosition().Clone()!;
+    var eyes       = new Vector(player.AbsOrigin?.X, player.AbsOrigin?.Y,
+      player.AbsOrigin?.Z + player.PlayerPawn.Value?.ViewOffset.Z);
     var localAngle = player.Pawn.Value.AbsRotation.Clone()!;
     var forward    = localAngle.Clone()!.ToForward();
     var right      = localAngle.ToRight();

@@ -1,6 +1,7 @@
 ﻿using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using Microsoft.Extensions.DependencyInjection;
+using RayTraceAPI;
 using ShopAPI;
 using ShopAPI.Configs.Traitor;
 using TTT.API;
@@ -9,8 +10,6 @@ using TTT.API.Player;
 using TTT.API.Storage;
 using TTT.CS2.API.Items;
 using TTT.CS2.Extensions;
-using TTT.CS2.RayTrace.Class;
-using TTT.CS2.RayTrace.Enum;
 using TTT.Locale;
 
 namespace TTT.CS2.Items.Tripwire;
@@ -59,13 +58,15 @@ public class TripwireDefuserListener(IServiceProvider provider)
 
   private TripwireInstance? getTargetTripwire(CCSPlayerController player) {
     if (tripwireTracker == null) return null;
-    var raytrace =
-      player.GetGameTraceByEyePosition(TraceMask.MaskSolid, Contents.NoDraw,
-        player);
 
-    if (raytrace == null || tripwireTracker.ActiveTripwires.Count == 0)
-      return null;
-    var raytracePos = raytrace.Value.EndPos.toVector();
+    var result = player.GetGameTraceByEyePosition(new TraceOptions {
+      DrawBeam         = 0,
+      InteractsWith    = (ulong)InteractionLayers.MASK_SHOT_FULL,
+      InteractsExclude = (ulong)InteractionLayers.NoDraw
+    });
+
+    if (tripwireTracker.ActiveTripwires.Count == 0) return null;
+    var raytracePos = result.EndPos.toVector();
 
     var closest =
       tripwireTracker?.ActiveTripwires.MinBy(i
