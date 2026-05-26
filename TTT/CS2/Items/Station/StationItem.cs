@@ -13,7 +13,6 @@ using TTT.API.Game;
 using TTT.API.Player;
 using TTT.API.Role;
 using TTT.CS2.Extensions;
-using TTT.CS2.RayTrace.Class;
 using TTT.Game.Events.Game;
 
 namespace TTT.CS2.Items.Station;

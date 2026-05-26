@@ -1,10 +1,9 @@
 ﻿using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Timers;
+using RayTraceAPI;
 using TTT.API;
 using TTT.CS2.Extensions;
-using TTT.CS2.RayTrace.Class;
-using TTT.CS2.RayTrace.Enum;
 
 namespace TTT.CS2.GameHandlers;
 
@@ -21,15 +20,20 @@ public class NameDisplayer : IPluginModule {
     foreach (var player in Utilities.GetPlayers()) {
       if (player.GetHealth() <= 0) continue;
 
-      var target = player.GetGameTraceByEyePosition(TraceMask.MaskSolid,
-        Contents.NoDraw, player);
+      var result = player.GetGameTraceByEyePosition(new TraceOptions {
+        DrawBeam         = 0,
+        InteractsWith    = (ulong)InteractionLayers.Player,
+        InteractsExclude = (ulong)InteractionLayers.NoDraw
+      });
 
-      if (target == null) continue;
-
-      if (!target.Value.HitPlayer(out var hit)) continue;
-      if (hit == null) continue;
-
-      player.PrintToCenterAlert($"{hit.PlayerName}");
+      if (!result.TryGetHitEntityByDesignerName<CCSPlayerController>(
+        "player",
+        out var hitPlayer))
+        return;
+      
+      if (hitPlayer == null) return;
+      
+      player.PrintToCenterAlert($"{hitPlayer.PlayerName}");
     }
   }
 }

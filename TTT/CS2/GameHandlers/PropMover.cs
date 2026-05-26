@@ -4,13 +4,12 @@ using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Timers;
 using CounterStrikeSharp.API.Modules.Utils;
 using Microsoft.Extensions.DependencyInjection;
+using RayTraceAPI;
 using TTT.API;
 using TTT.API.Events;
 using TTT.API.Player;
 using TTT.CS2.Events;
 using TTT.CS2.Extensions;
-using TTT.CS2.RayTrace.Class;
-using TTT.CS2.RayTrace.Enum;
 using Vector = CounterStrikeSharp.API.Modules.Utils.Vector;
 
 namespace TTT.CS2.GameHandlers;
@@ -61,18 +60,25 @@ public class PropMover(IServiceProvider provider) : IPluginModule {
   private void onStartUse(CCSPlayerController player) {
     var playerPos = player.PlayerPawn.Value?.AbsOrigin;
     if (playerPos == null) return;
-    var target = player.GetGameTraceByEyePosition(TraceMask.MaskSolid,
-      Contents.NoDraw, player);
-    if (target == null) return;
+    var result = player.GetGameTraceByEyePosition(new TraceOptions {
+      DrawBeam         = 0,
+      InteractsWith    = (ulong)InteractionLayers.MASK_SHOT_FULL,
+      InteractsExclude = (ulong)InteractionLayers.NoDraw
+    });
 
-    target.Value.HitEntityByDesignerName(out CBaseEntity? hitEntity,
-      "prop_ragdoll");
+    if (!result.DidHit) return;
+
+    var entity = new CEntityInstance(result.HitEntity);
+    if (!entity.IsValid || !entity.DesignerName.Contains("player")) return;
+
+    result.TryGetHitEntityByDesignerName<CBaseEntity>("prop_ragdoll",
+      out var hitEntity);
 
     if (hitEntity == null || !hitEntity.IsValid)
-      target.Value.HitEntityByDesignerName(out hitEntity,
-        "prop_physics_multiplayer");
+      result.TryGetHitEntityByDesignerName<CBaseEntity>(
+        "prop_physics_multiplayer", out hitEntity);
 
-    var playerDist = target.Value.Distance();
+    var playerDist = playerPos.Distance(result.EndPos.toVector());
     if (playerDist > MAX_DISTANCE) return;
     if (hitEntity == null) return;
 
@@ -121,18 +127,20 @@ public class PropMover(IServiceProvider provider) : IPluginModule {
       return;
     }
 
-    var raytrace = player.GetGameTraceByEyePosition(TraceMask.MaskSolid,
-      Contents.NoDraw, player);
-
-    if (raytrace == null) return;
+    var result = player.GetGameTraceByEyePosition(new TraceOptions {
+      DrawBeam         = 0,
+      InteractsWith    = (ulong)InteractionLayers.MASK_SHOT_FULL,
+      InteractsExclude = (ulong)InteractionLayers.NoDraw
+    });
 
     var isOnSelf =
-      raytrace.Value.HitEntityByDesignerName(out CBaseEntity? _,
-        ent.DesignerName);
+      result.TryGetHitEntityByDesignerName<CBaseEntity>(ent.DesignerName,
+        out _);
 
-    var endPos = raytrace.Value.EndPos.toVector();
+    var endPos = result.EndPos.toVector();
 
-    if (isOnSelf || raytrace.Value.Distance() > MAX_HOLDING_DISTANCE)
+    if (isOnSelf || result.EndPos.toVector().Distance(playerOrigin)
+      > MAX_HOLDING_DISTANCE)
       endPos = playerOrigin
         + playerPawn.EyeAngles.ToForward() * MAX_HOLDING_DISTANCE;
 
