@@ -1,4 +1,7 @@
-﻿using CounterStrikeSharp.API.Core;
+﻿using CounterStrikeSharp.API;
+using CounterStrikeSharp.API.Core;
+using CounterStrikeSharp.API.Modules.Entities;
+using FastGenericNew;
 using RayTraceAPI;
 
 namespace TTT.CS2.Extensions;
@@ -11,27 +14,34 @@ public static class TraceResultExtensions {
   public static bool TryGetHitEntityByDesignerName<T>(this TraceResult trace,
     string designerName, out T? entity,
     DesignerNameMatchType matchType = DesignerNameMatchType.Contains)
-    where T : CBaseEntity {
+    where T : CEntityInstance {
     entity = null;
 
     if (!trace.DidHit || trace.HitEntity == 0) return false;
+    
+    var entityPointer = NativeAPI.GetEntityPointerFromHandle(trace.HitEntity);
 
-    var typedEntity = (T?)new CBaseEntity(trace.HitEntity);
+    var instance = new CEntityInstance(entityPointer);
+    
+    var entityPtr = EntitySystem.GetEntityByIndex(instance.Index);
+
+    if (entityPtr == null) return entity != null;
+    var typedEntity = FastNew.CreateInstance<T, nint>(entityPtr.Value);
 
     entity = matchType switch {
-      DesignerNameMatchType.Equals => typedEntity != null && typedEntity.DesignerName.Equals(
+      DesignerNameMatchType.Equals => typedEntity.DesignerName.Equals(
         designerName, StringComparison.OrdinalIgnoreCase) ?
         typedEntity :
         null,
-      DesignerNameMatchType.StartsWith => typedEntity != null && typedEntity.DesignerName.StartsWith(
+      DesignerNameMatchType.StartsWith => typedEntity.DesignerName.StartsWith(
         designerName, StringComparison.OrdinalIgnoreCase) ?
         typedEntity :
         null,
-      DesignerNameMatchType.EndsWith => typedEntity != null && typedEntity.DesignerName.EndsWith(
+      DesignerNameMatchType.EndsWith => typedEntity.DesignerName.EndsWith(
         designerName, StringComparison.OrdinalIgnoreCase) ?
         typedEntity :
         null,
-      DesignerNameMatchType.Contains => typedEntity != null && typedEntity.DesignerName.Contains(
+      DesignerNameMatchType.Contains => typedEntity.DesignerName.Contains(
         designerName, StringComparison.OrdinalIgnoreCase) ?
         typedEntity :
         null,
