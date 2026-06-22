@@ -17,7 +17,7 @@
 
   <Target Name="PreprocessYaml" AfterTargets="Build;VSTest">
     <PropertyGroup>
-      <LocaleDllPath>$(MSBuildProjectDirectory)\bin\$(Configuration)\net8.0\$(AssemblyName).dll</LocaleDllPath>
+      <LocaleDllPath>$(MSBuildProjectDirectory)\bin\$(Configuration)\net10.0\$(AssemblyName).dll</LocaleDllPath>
       <MasterJsonPath>$(MSBuildProjectDirectory)\..\lang\en.json</MasterJsonPath>
     </PropertyGroup>
 
