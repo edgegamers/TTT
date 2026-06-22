@@ -18,7 +18,7 @@ public static class TraceResultExtensions {
     where T : CEntityInstance {
     entity = null;
 
-    var entityInstance = new CEntityInstance((uint)trace.HitEntity);
+    var entityInstance = new CEntityInstance(trace.HitEntity);
 
     if (string.IsNullOrWhiteSpace(entityInstance.DesignerName)) { return false; }
 
