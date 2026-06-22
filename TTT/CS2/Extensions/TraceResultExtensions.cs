@@ -23,8 +23,6 @@ public static class TraceResultExtensions {
     if (string.IsNullOrWhiteSpace(entityInstance.DesignerName)) { return false; }
 
     var baseEntity = entityInstance.As<CBaseEntity>();
-    if (baseEntity.DesignerName != designerName)
-      return false;
     
     entity = baseEntity.As<T>();
     return true;
