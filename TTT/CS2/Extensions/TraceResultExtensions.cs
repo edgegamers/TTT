@@ -1,7 +1,5 @@
-﻿using CounterStrikeSharp.API;
+﻿using System.Linq.Expressions;
 using CounterStrikeSharp.API.Core;
-using CounterStrikeSharp.API.Modules.Entities;
-using FastGenericNew;
 using RayTraceAPI;
 
 namespace TTT.CS2.Extensions;
@@ -11,43 +9,70 @@ public static class TraceResultExtensions {
     Equals, StartsWith, EndsWith, Contains
   }
 
-  public static bool TryGetHitEntityByDesignerName<T>(this TraceResult trace,
-    string designerName, out T? entity,
+  public static bool TryGetHitEntityByDesignerName<T>(
+    this TraceResult trace,
+    string designerName,
+    out T? entity,
     DesignerNameMatchType matchType = DesignerNameMatchType.Contains)
-    where T : CEntityInstance {
+    where T : CBaseEntity {
     entity = null;
 
-    if (!trace.DidHit || trace.HitEntity == 0) return false;
-    
-    var entityPointer = NativeAPI.GetEntityPointerFromHandle(trace.HitEntity);
+    var pointer = (nint)trace.HitEntity;
 
-    var instance = new CEntityInstance(entityPointer);
-    
-    var entityPtr = EntitySystem.GetEntityByIndex(instance.Index);
+    if (pointer == nint.Zero) {
+      return false;
+    }
 
-    if (entityPtr == null) return entity != null;
-    var typedEntity = FastNew.CreateInstance<T, nint>(entityPtr.Value);
+    // Use the base wrapper only to inspect shared entity data.
+    var hitEntity = new CBaseEntity(pointer);
 
-    entity = matchType switch {
-      DesignerNameMatchType.Equals => typedEntity.DesignerName.Equals(
-        designerName, StringComparison.OrdinalIgnoreCase) ?
-        typedEntity :
-        null,
-      DesignerNameMatchType.StartsWith => typedEntity.DesignerName.StartsWith(
-        designerName, StringComparison.OrdinalIgnoreCase) ?
-        typedEntity :
-        null,
-      DesignerNameMatchType.EndsWith => typedEntity.DesignerName.EndsWith(
-        designerName, StringComparison.OrdinalIgnoreCase) ?
-        typedEntity :
-        null,
-      DesignerNameMatchType.Contains => typedEntity.DesignerName.Contains(
-        designerName, StringComparison.OrdinalIgnoreCase) ?
-        typedEntity :
-        null,
-      _ => null
+    if (!MatchesDesignerName(
+      hitEntity.DesignerName,
+      designerName,
+      matchType)) {
+      return false;
+    }
+
+    entity = EntityFactory<T>.Create(pointer);
+    return true;
+  }
+
+  private static bool MatchesDesignerName(
+    string? actual,
+    string expected,
+    DesignerNameMatchType matchType) {
+    if (string.IsNullOrWhiteSpace(actual)) {
+      return false;
+    }
+
+    return matchType switch {
+      DesignerNameMatchType.Equals =>
+        string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase),
+
+      DesignerNameMatchType.StartsWith =>
+        actual.StartsWith(expected, StringComparison.OrdinalIgnoreCase),
+
+      DesignerNameMatchType.EndsWith =>
+        actual.EndsWith(expected, StringComparison.OrdinalIgnoreCase),
+
+      _ => actual.Contains(expected, StringComparison.OrdinalIgnoreCase)
     };
+  }
 
-    return entity != null;
+  private static class EntityFactory<T>
+    where T : CBaseEntity {
+    public static readonly Func<nint, T> Create = Build();
+
+    private static Func<nint, T> Build() {
+      var constructor = typeof(T).GetConstructor([typeof(nint)])
+        ?? throw new InvalidOperationException(
+          $"{typeof(T).Name} must expose a public constructor accepting nint.");
+
+      var pointer = Expression.Parameter(typeof(nint), "pointer");
+
+      return Expression.Lambda<Func<nint, T>>(
+        Expression.New(constructor, pointer),
+        pointer).Compile();
+    }
   }
 }
