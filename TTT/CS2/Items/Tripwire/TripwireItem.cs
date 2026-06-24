@@ -138,9 +138,13 @@ public class TripwireItem(IServiceProvider provider)
     tripwire = Utilities.CreateEntityByName<CDynamicProp>("prop_dynamic");
     if (tripwire == null) return false;
 
+    // DispatchSpawn must run before SetModel: SetModel -> SetupModel asserts the
+    // entity is no longer in the staging list (EF_IN_STAGING_LIST), which is
+    // only cleared by DispatchSpawn. Setting the (skeletal) conveyor model while
+    // still staged hard-crashes the server.
+    tripwire.DispatchSpawn();
     tripwire.SetModel(
       "models/generic/conveyor_control_panel_01/conveyor_button_02.vmdl");
-    tripwire.DispatchSpawn();
 
     tripwire.Teleport(originTrace.Value.EndPos.toVector(),
       originTrace.Value.Normal.toVector().toAngle());
