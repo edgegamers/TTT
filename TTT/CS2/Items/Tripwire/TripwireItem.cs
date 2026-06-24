@@ -125,8 +125,12 @@ public class TripwireItem(IServiceProvider provider)
 
     var angles = originTrace.Value.Normal.toVector().toAngle();
 
+    // Ignore the player's PAWN, not the controller. TraceShape dereferences the
+    // ignore entity's collidable to build the trace filter; a CCSPlayerController
+    // has no collidable, so passing it crashes the server inside
+    // CRayTrace::TraceShapeInternal. The pawn is the body we want excluded anyway.
     var isSuccess = EgoApi.RAY_TRACE.Get()!
-     .TraceShape(originTrace.Value.EndPos.toVector(), angles, gamePlayer,
+     .TraceShape(originTrace.Value.EndPos.toVector(), angles, playerPawn,
         new TraceOptions {
           DrawBeam         = 0,
           InteractsWith    = (ulong)InteractionLayers.MASK_SHOT_FULL,
