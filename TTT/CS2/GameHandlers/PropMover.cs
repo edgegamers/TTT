@@ -100,7 +100,7 @@ public class PropMover(IServiceProvider provider) : IPluginModule {
     playersPressingE.Remove(player);
     if (!heldItem.Ragdoll.IsValid) return;
     if (heldItem.Beam != null && heldItem.Beam.IsValid)
-      heldItem.Beam.AcceptInput("Kill");
+      heldItem.Beam.Remove();
     // Check if any other players are still holding this ragdoll
     foreach (var (_, info) in playersPressingE)
       if (info.Ragdoll == heldItem.Ragdoll)
@@ -204,7 +204,7 @@ public class PropMover(IServiceProvider provider) : IPluginModule {
     if (ent.AbsOrigin == null) return;
 
     if (info.Beam != null && info.Beam.IsValid) {
-      info.Beam.AcceptInput("Kill");
+      info.Beam.Remove();
       info.Beam = createBeam(playerOrigin.With(z: playerOrigin.Z - 16),
         ent.AbsOrigin);
     }
@@ -222,6 +222,9 @@ public class PropMover(IServiceProvider provider) : IPluginModule {
     beam.EndPos.Y   = end.Y;
     beam.EndPos.Z   = end.Z;
     beam.Teleport(start);
+    // Spawn the beam so it's a fully-registered entity; otherwise Remove()/Kill
+    // don't reliably destroy it and the beam lingers.
+    beam.DispatchSpawn();
     return beam;
   }
 }
