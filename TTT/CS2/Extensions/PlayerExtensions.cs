@@ -70,11 +70,15 @@ public static class PlayerExtensions {
     var pawn = player.PlayerPawn.Value;
     if (pawn == null || !pawn.IsValid) return;
     pawn.ArmorValue = armor;
-    if (withHelmet)
-      if (pawn.ItemServices != null)
-        new CCSPlayer_ItemServices(pawn.ItemServices.Handle).HasHelmet = true;
-
     Utilities.SetStateChanged(pawn, "CCSPlayerPawn", "m_ArmorValue");
+
+    if (withHelmet && pawn.ItemServices != null) {
+      new CCSPlayer_ItemServices(pawn.ItemServices.Handle).HasHelmet = true;
+      // The helmet flag lives on the item services sub-object; without its own
+      // SetStateChanged the value is set server-side but never networked, so the
+      // client never sees/gets the helmet (kevlar showed, helmet didn't).
+      Utilities.SetStateChanged(pawn, "CCSPlayer_ItemServices", "m_bHasHelmet");
+    }
   }
 
   public static (int, bool) GetArmor(this CCSPlayerController player) {
