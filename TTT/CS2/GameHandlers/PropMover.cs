@@ -68,9 +68,10 @@ public class PropMover(IServiceProvider provider) : IPluginModule {
 
     if (!result.DidHit) return;
 
-    var entity = new CEntityInstance(result.HitEntity);
-    if (!entity.IsValid || !entity.DesignerName.Contains("player")) return;
-
+    // A body is a prop_ragdoll, not a "player" entity, so don't pre-filter the
+    // hit on a "player" designer name (that guard blocked all body pickup and
+    // identification). The ragdoll lookups below are guarded inside the
+    // extension, and the body tracker is the real "is this a body?" filter.
     result.TryGetHitEntityByDesignerName<CBaseEntity>("prop_ragdoll",
       out var hitEntity);
 
