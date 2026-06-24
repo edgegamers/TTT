@@ -26,14 +26,18 @@ public class NameDisplayer : IPluginModule {
         InteractsExclude = (ulong)InteractionLayers.NoDraw
       });
 
-      if (!result.TryGetHitEntityByDesignerName<CCSPlayerController>(
-        "player",
-        out var hitPlayer))
-        return;
-      
-      if (hitPlayer == null) return;
-      
-      player.PrintToCenterAlert($"{hitPlayer.PlayerName}");
+      // The ray hits the player PAWN, not the controller. Reading PlayerName
+      // off the pawn pointer yields garbage (a stray glyph), so resolve the
+      // controller from the pawn first. Use continue, not return, so every
+      // player is processed (return bailed the whole loop on the first miss).
+      if (!result.TryGetHitEntityByDesignerName<CCSPlayerPawn>("player",
+        out var pawn) || pawn == null)
+        continue;
+
+      var hitPlayer = pawn.Controller.Value?.As<CCSPlayerController>();
+      if (hitPlayer == null || !hitPlayer.IsValid) continue;
+
+      player.PrintToCenterAlert(hitPlayer.PlayerName);
     }
   }
 }
