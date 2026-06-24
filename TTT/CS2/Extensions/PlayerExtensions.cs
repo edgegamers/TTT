@@ -3,6 +3,8 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.UserMessages;
 using CounterStrikeSharp.API.Modules.Utils;
+using RayTraceAPI;
+using TTT.CS2.ThirdParties.eGO;
 
 namespace TTT.CS2.Extensions;
 
@@ -117,6 +119,36 @@ public static class PlayerExtensions {
       OTHERS(player.Slot), 0.2f, 1);
     player.PlayerPawn.Value?.EmitSound("Player.DamageBody.Victim",
       SELF(player.Slot), 0.2f, 1);
+  }
+
+  public static TraceResult GetGameTraceByEyePosition(
+    this CCSPlayerController player, TraceOptions options) {
+    var playerPawn = player.PlayerPawn.Value;
+    if (playerPawn == null || playerPawn.AbsOrigin == null)
+      return new TraceResult();
+    var absOrigin = playerPawn.AbsOrigin;
+    var eyePosition = new Vector(absOrigin.X, absOrigin.Y,
+      absOrigin.Z + playerPawn.ViewOffset.Z);
+    var eyeAngles = playerPawn.EyeAngles;
+
+    var forward = new Vector();
+    NativeAPI.AngleVectors(eyeAngles.Handle, forward.Handle, 0, 0);
+    var endOrigin = new Vector(eyePosition.X + forward.X * 8192,
+      eyePosition.Y + forward.Y * 8192, eyePosition.Z + forward.Z * 8192);
+
+    EgoApi.RAY_TRACE.Get()!.TraceEndShape(eyePosition, endOrigin, playerPawn,
+      options, out var result);
+    
+    return result;
+  }
+
+  public static Vector? GetEyePosition(this CCSPlayerController player) {
+    var playerPawn = player.PlayerPawn.Value;
+    if (playerPawn == null || playerPawn.AbsOrigin == null) return null;
+    var absOrigin = playerPawn.AbsOrigin;
+    var eyePosition = new Vector(absOrigin.X, absOrigin.Y,
+      absOrigin.Z + playerPawn.ViewOffset.Z);
+    return eyePosition;
   }
 
   private static RecipientFilter SELF(int slot) {

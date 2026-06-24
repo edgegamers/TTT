@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>TTT.CS2</RootNamespace>
@@ -20,10 +20,9 @@
     <Reference Include="MAULActainShared.dll">
       <HintPath>./ThirdParties/Binaries/MAULActainShared.dll</HintPath>
     </Reference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="RayTrace\"/>
+      <Reference Include="RayTraceApi">
+          <HintPath>./ThirdParties/Binaries/RayTraceApi.dll</HintPath>
+      </Reference>
   </ItemGroup>
 
 </Project>

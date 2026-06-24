@@ -1,10 +1,9 @@
 ﻿using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Timers;
+using RayTraceAPI;
 using TTT.API;
 using TTT.CS2.Extensions;
-using TTT.CS2.RayTrace.Class;
-using TTT.CS2.RayTrace.Enum;
 
 namespace TTT.CS2.GameHandlers;
 
@@ -21,15 +20,24 @@ public class NameDisplayer : IPluginModule {
     foreach (var player in Utilities.GetPlayers()) {
       if (player.GetHealth() <= 0) continue;
 
-      var target = player.GetGameTraceByEyePosition(TraceMask.MaskSolid,
-        Contents.NoDraw, player);
+      var result = player.GetGameTraceByEyePosition(new TraceOptions {
+        DrawBeam         = 0,
+        InteractsWith    = (ulong)InteractionLayers.Player,
+        InteractsExclude = (ulong)InteractionLayers.NoDraw
+      });
 
-      if (target == null) continue;
+      // The ray hits the player PAWN, not the controller. Reading PlayerName
+      // off the pawn pointer yields garbage (a stray glyph), so resolve the
+      // controller from the pawn first. Use continue, not return, so every
+      // player is processed (return bailed the whole loop on the first miss).
+      if (!result.TryGetHitEntityByDesignerName<CCSPlayerPawn>("player",
+        out var pawn) || pawn == null)
+        continue;
 
-      if (!target.Value.HitPlayer(out var hit)) continue;
-      if (hit == null) continue;
+      var hitPlayer = pawn.Controller.Value?.As<CCSPlayerController>();
+      if (hitPlayer == null || !hitPlayer.IsValid) continue;
 
-      player.PrintToCenterAlert($"{hit.PlayerName}");
+      player.PrintToCenterAlert(hitPlayer.PlayerName);
     }
   }
 }

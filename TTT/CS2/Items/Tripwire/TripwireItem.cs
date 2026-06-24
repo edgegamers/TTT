@@ -5,6 +5,7 @@ using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Utils;
 using JetBrains.Annotations;
 using Microsoft.Extensions.DependencyInjection;
+using RayTraceAPI;
 using ShopAPI;
 using ShopAPI.Configs;
 using ShopAPI.Configs.Traitor;
@@ -16,9 +17,7 @@ using TTT.API.Player;
 using TTT.API.Storage;
 using TTT.CS2.API.Items;
 using TTT.CS2.Extensions;
-using TTT.CS2.RayTrace.Class;
-using TTT.CS2.RayTrace.Enum;
-using TTT.CS2.RayTrace.Struct;
+using TTT.CS2.ThirdParties.eGO;
 using TTT.Game.Events.Game;
 using TTT.Game.Roles;
 
@@ -100,8 +99,8 @@ public class TripwireItem(IServiceProvider provider)
   }
 
   private bool placeTripwire(IOnlinePlayer player,
-    [NotNullWhen(true)] out CGameTrace? originTrace,
-    [NotNullWhen(true)] out CGameTrace? endTrace,
+    [NotNullWhen(true)] out TraceResult? originTrace,
+    [NotNullWhen(true)] out TraceResult? endTrace,
     [NotNullWhen(true)] out CDynamicProp? tripwire) {
     tripwire    = null;
     originTrace = null;
@@ -110,10 +109,12 @@ public class TripwireItem(IServiceProvider provider)
     var playerPawn = gamePlayer?.PlayerPawn.Value;
     if (gamePlayer == null || playerPawn == null) return false;
 
-    originTrace = gamePlayer.GetGameTraceByEyePosition(TraceMask.MaskSolid,
-      Contents.NoDraw, gamePlayer);
+    originTrace = gamePlayer.GetGameTraceByEyePosition(new TraceOptions {
+      DrawBeam         = 0,
+      InteractsWith    = (ulong)InteractionLayers.MASK_SHOT_FULL,
+      InteractsExclude = (ulong)InteractionLayers.NoDraw});
     var origin = gamePlayer.GetEyePosition();
-    if (origin == null || originTrace == null) return false;
+    if (origin == null) return false;
 
     if (origin.DistanceSquared(originTrace.Value.EndPos.toVector())
       > config.MaxPlacementDistanceSquared) {
@@ -124,15 +125,30 @@ public class TripwireItem(IServiceProvider provider)
 
     var angles = originTrace.Value.Normal.toVector().toAngle();
 
-    endTrace = TraceRay.TraceShape(originTrace.Value.EndPos.toVector(), angles,
-      TraceMask.MaskSolid, Contents.NoDraw, gamePlayer);
+    // Ignore the player's PAWN, not the controller. TraceShape dereferences the
+    // ignore entity's collidable to build the trace filter; a CCSPlayerController
+    // has no collidable, so passing it crashes the server inside
+    // CRayTrace::TraceShapeInternal. The pawn is the body we want excluded anyway.
+    var isSuccess = EgoApi.RAY_TRACE.Get()!
+     .TraceShape(originTrace.Value.EndPos.toVector(), angles, playerPawn,
+        new TraceOptions {
+          DrawBeam         = 0,
+          InteractsWith    = (ulong)InteractionLayers.MASK_SHOT_FULL,
+          InteractsExclude = (ulong)InteractionLayers.NoDraw
+        }, out var result);
+    if (!isSuccess) return false;
+    endTrace = result;
 
     tripwire = Utilities.CreateEntityByName<CDynamicProp>("prop_dynamic");
     if (tripwire == null) return false;
 
+    // DispatchSpawn must run before SetModel: SetModel -> SetupModel asserts the
+    // entity is no longer in the staging list (EF_IN_STAGING_LIST), which is
+    // only cleared by DispatchSpawn. Setting the (skeletal) conveyor model while
+    // still staged hard-crashes the server.
+    tripwire.DispatchSpawn();
     tripwire.SetModel(
       "models/generic/conveyor_control_panel_01/conveyor_button_02.vmdl");
-    tripwire.DispatchSpawn();
 
     tripwire.Teleport(originTrace.Value.EndPos.toVector(),
       originTrace.Value.Normal.toVector().toAngle());

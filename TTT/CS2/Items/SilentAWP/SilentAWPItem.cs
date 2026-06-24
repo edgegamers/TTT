@@ -10,7 +10,6 @@ using TTT.API.Extensions;
 using TTT.API.Player;
 using TTT.API.Storage;
 using TTT.CS2.Extensions;
-using TTT.CS2.RayTrace.Class;
 using TTT.Game.Roles;
 using Vector = CounterStrikeSharp.API.Modules.Utils.Vector;
 

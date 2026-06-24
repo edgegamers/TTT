@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>TTT.Locale</RootNamespace>
@@ -17,7 +17,7 @@
 
   <Target Name="PreprocessYaml" AfterTargets="Build;VSTest">
     <PropertyGroup>
-      <LocaleDllPath>$(MSBuildProjectDirectory)\bin\$(Configuration)\net8.0\$(AssemblyName).dll</LocaleDllPath>
+      <LocaleDllPath>$(MSBuildProjectDirectory)\bin\$(Configuration)\net10.0\$(AssemblyName).dll</LocaleDllPath>
       <MasterJsonPath>$(MSBuildProjectDirectory)\..\lang\en.json</MasterJsonPath>
     </PropertyGroup>
 
