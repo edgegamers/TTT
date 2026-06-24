@@ -131,7 +131,17 @@ public class RoleIconsHandler(IServiceProvider provider)
     var pawn = player.Pawn.Value;
     if (pawn == null || !pawn.IsValid) return;
 
-    pawn.SetModel(ev.Role is DetectiveRole ? CT_MODEL : T_MODEL);
+    // Defer the model swap: SwitchTeam above can respawn the pawn, putting it
+    // back in the staging list (EF_IN_STAGING_LIST). SetModel -> SetupModel
+    // asserts the pawn is no longer staged, so calling it synchronously here
+    // throws that assertion every team switch. Re-fetch the (possibly new) pawn
+    // next world update, once it has finished spawning.
+    var model = ev.Role is DetectiveRole ? CT_MODEL : T_MODEL;
+    Server.NextWorldUpdate(() => {
+      var spawned = players.GetPlayer(ev.Player)?.Pawn.Value;
+      if (spawned is { IsValid: true }) spawned.SetModel(model);
+    });
+
     assignIcon(player, ev.Role);
 
     switch (ev.Role) {
