@@ -204,9 +204,14 @@ public class PropMover(IServiceProvider provider) : IPluginModule {
     if (ent.AbsOrigin == null) return;
 
     if (info.Beam != null && info.Beam.IsValid) {
-      info.Beam.Remove();
-      info.Beam = createBeam(playerOrigin.With(z: playerOrigin.Z - 16),
-        ent.AbsOrigin);
+      // Reuse the single beam — move its start + end each tick instead of
+      // recreating it. env_beam removal is unreliable, so the old recreate-
+      // every-tick approach leaked a fresh beam every tick while carrying.
+      info.Beam.Teleport(playerOrigin.With(z: playerOrigin.Z - 16));
+      info.Beam.EndPos.X = ent.AbsOrigin.X;
+      info.Beam.EndPos.Y = ent.AbsOrigin.Y;
+      info.Beam.EndPos.Z = ent.AbsOrigin.Z;
+      Utilities.SetStateChanged(info.Beam, "CBeam", "m_vecEndPos");
     }
 
     playersPressingE[player] = info;
