@@ -78,6 +78,14 @@ public class TripwireItem(IServiceProvider provider)
   [EventHandler]
   public void OnGameEvent(GameStateUpdateEvent ev) {
     if (ev.NewState != State.FINISHED) return;
+    // Remove the beam + prop entities, not just the list entries — otherwise
+    // untriggered tripwires leak their env_beam/prop every round and the beams
+    // accumulate across rounds.
+    foreach (var instance in ActiveTripwires) {
+      instance.Beam.Remove();
+      instance.TripwireProp.Remove();
+    }
+
     ActiveTripwires.Clear();
   }
 
