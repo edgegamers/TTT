@@ -26,6 +26,7 @@ public class RoundTimerListener(IServiceProvider provider)
     provider.GetRequiredService<IPlayerConverter<CCSPlayerController>>();
 
   public IDisposable? EndTimer;
+  public IDisposable? SafetyTimer;
 
   private TTTConfig config
     => Provider.GetRequiredService<IStorage<TTTConfig>>()
@@ -63,7 +64,10 @@ public class RoundTimerListener(IServiceProvider provider)
           player.Respawn();
       });
 
-    if (ev.NewState == State.FINISHED) EndTimer?.Dispose();
+    if (ev.NewState == State.FINISHED) {
+      EndTimer?.Dispose();
+      SafetyTimer?.Dispose();
+    }
     if (ev.NewState != State.IN_PROGRESS) return;
     var duration = config.RoundCfg.RoundDuration(ev.Game.Players.Count);
     Server.NextWorldUpdate(()
@@ -75,6 +79,13 @@ public class RoundTimerListener(IServiceProvider provider)
         Server.NextWorldUpdate(()
           => ev.Game.EndGame(EndReason.TIMEOUT(new InnocentRole(Provider))));
       });
+
+    // Safety net: round-end is otherwise only checked on death/leave events; if
+    // any single trigger is missed the round hangs forever. Re-check ~1x/sec
+    // while in progress so it always converges (no-op once FINISHED).
+    SafetyTimer?.Dispose();
+    SafetyTimer = Observable.Interval(TimeSpan.FromSeconds(1), Scheduler)
+     .Subscribe(_ => Server.NextWorldUpdate(() => ev.Game.CheckEndConditions()));
   }
 
   [UsedImplicitly]
@@ -138,5 +149,6 @@ public class RoundTimerListener(IServiceProvider provider)
     base.Dispose();
 
     EndTimer?.Dispose();
+    SafetyTimer?.Dispose();
   }
 }
