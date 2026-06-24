@@ -72,13 +72,17 @@ public class TripwireMovementListener(IServiceProvider provider)
           InteractsExclude = (ulong)InteractionLayers.NoDraw
         }, out var result);
 
+      // The ray hits the player PAWN; resolve the controller from it before
+      // looking up the player (SteamID/Index read off the pawn are garbage).
       if (!result.DidHit
-        || !result.TryGetHitEntityByDesignerName<CCSPlayerController>("player",
-          out var player))
+        || !result.TryGetHitEntityByDesignerName<CCSPlayerPawn>("player",
+          out var pawn) || pawn == null)
         continue;
 
-      if (!config.FriendlyFireTriggers && player != null) {
-        var apiPlayer = converter.GetPlayer(player);
+      var hitController = pawn.Controller.Value?.As<CCSPlayerController>();
+
+      if (!config.FriendlyFireTriggers && hitController is { IsValid: true }) {
+        var apiPlayer = converter.GetPlayer(hitController);
         var role      = Roles.GetRoles(apiPlayer);
         if (role.Any(r => r is TraitorRole)) continue;
       }
