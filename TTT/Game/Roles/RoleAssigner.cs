@@ -8,9 +8,10 @@ using TTT.Game.Events.Player;
 namespace TTT.Game.Roles;
 
 public class RoleAssigner(IServiceProvider provider) : IRoleAssigner {
-  private static readonly Random rng = new();
-
   private readonly IDictionary<string, ICollection<IRole>> assignedRoles =
+    new Dictionary<string, ICollection<IRole>>();
+
+  private IDictionary<string, ICollection<IRole>> lastRoles =
     new Dictionary<string, ICollection<IRole>>();
 
   private readonly IEventBus bus = provider.GetRequiredService<IEventBus>();
@@ -19,10 +20,21 @@ public class RoleAssigner(IServiceProvider provider) : IRoleAssigner {
     provider.GetService<IMessenger>();
 
   public void AssignRoles(ISet<IOnlinePlayer> players, IList<IRole> roles) {
+    // Snapshot the previous round's assignments before clearing so role
+    // selection can avoid handing a player the same role twice in a row.
+    lastRoles = new Dictionary<string, ICollection<IRole>>(assignedRoles);
     assignedRoles.Clear();
-    var  shuffled = players.OrderBy(_ => rng.NextDouble()).ToHashSet();
+
+    // Selection is randomized per-role in RatioBasedRole.FindPlayerToAssign,
+    // so no pre-shuffle is needed (the old OrderBy(...).ToHashSet() shuffle was
+    // discarded by ToHashSet anyway, making picks deterministic by SteamID).
+    var pool = players.ToHashSet();
     bool roleAssigned;
-    do { roleAssigned = tryAssignRole(shuffled, roles); } while (roleAssigned);
+    do { roleAssigned = tryAssignRole(pool, roles); } while (roleAssigned);
+  }
+
+  public ICollection<IRole> GetPreviousRoles(IPlayer player) {
+    return lastRoles.TryGetValue(player.Id, out var roles) ? roles : [];
   }
 
   public Task<ICollection<IRole>?> Load(IPlayer key) {
