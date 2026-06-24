@@ -222,6 +222,9 @@ public class PropMover(IServiceProvider provider) : IPluginModule {
     beam.EndPos.Y   = end.Y;
     beam.EndPos.Z   = end.Z;
     beam.Teleport(start);
+    // Spawn the beam so it's a fully-registered entity; otherwise Remove()/Kill
+    // don't reliably destroy it and the beam lingers.
+    beam.DispatchSpawn();
     return beam;
   }
 }
