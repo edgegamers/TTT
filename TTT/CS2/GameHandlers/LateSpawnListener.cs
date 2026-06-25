@@ -21,7 +21,18 @@ public class LateSpawnListener(IServiceProvider provider)
   [UsedImplicitly]
   [EventHandler]
   public void OnJoin(PlayerJoinEvent ev) {
-    if (Games.ActiveGame is { State: State.IN_PROGRESS }) return;
+    if (Games.ActiveGame is { State: State.IN_PROGRESS }) {
+      // A round is already running; late joiners can't be assigned a role
+      // mid-round, so park them in spectator until the next round instead of
+      // leaving them role-less and half-spawned.
+      Server.NextWorldUpdate(() => {
+        var player = converter.GetPlayer(ev.Player);
+        if (player == null || !player.IsValid) return;
+        if (player.Team is not (CsTeam.Spectator or CsTeam.None))
+          player.ChangeTeam(CsTeam.Spectator);
+      });
+      return;
+    }
 
     Server.NextWorldUpdate(() => {
       var player = converter.GetPlayer(ev.Player);

@@ -4,6 +4,7 @@ namespace ShopAPI.Configs.Traitor;
 
 public record ClusterGrenadeConfig : ShopItemConfig, IWeapon {
   public override int Price { get; init; } = 100;
+  public override int PurchaseLimit { get; init; } = 1;
   public int GrenadeCount { get; init; } = 8;
   public float UpForce { get; init; } = 200f;
   public float ThrowForce { get; init; } = 300f;

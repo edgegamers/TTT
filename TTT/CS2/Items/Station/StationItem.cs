@@ -64,10 +64,13 @@ public abstract class StationItem<T>(IServiceProvider provider,
   public HookResult OnBulletImpact(EventBulletImpact ev, GameEventInfo info) {
     var hitVec = new Vector(ev.X, ev.Y, ev.Z);
 
+    // Filter out invalid/removed props BEFORE dereferencing AbsOrigin —
+    // computing Distance in the Select first threw on invalid entities
+    // ("Schema target points to null") every bullet impact.
     var nearest = Props
+     .Where(kv => kv.Key is { IsValid: true, AbsOrigin: not null })
      .Select(kv => (kv.Key, kv.Value,
         Distance: kv.Key.AbsOrigin!.DistanceSquared(hitVec)))
-     .Where(t => t.Key is { IsValid: true, AbsOrigin: not null })
      .OrderBy(t => t.Distance)
      .FirstOrDefault();
 

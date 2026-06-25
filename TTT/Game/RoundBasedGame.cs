@@ -137,9 +137,16 @@ public class RoundBasedGame(IServiceProvider provider) : IGame {
     var detectiveRole = Roles.First(r
       => r.GetType().IsAssignableTo(typeof(DetectiveRole)));
 
-    var traitorsAlive    = ((IGame)this).GetAlive(typeof(TraitorRole)).Count;
-    var nonTraitorsAlive = ((IGame)this).GetAlive().Count - traitorsAlive;
-    var detectivesAlive  = ((IGame)this).GetAlive(typeof(DetectiveRole)).Count;
+    // Single pass over alive role-holders (cheaper + allocation-free than 3x
+    // GetAlive(); counts are equivalent: non-traitors = innocents + detectives).
+    int traitorsAlive = 0, nonTraitorsAlive = 0, detectivesAlive = 0;
+    foreach (var p in Players.OfType<IOnlinePlayer>()) {
+      if (!p.IsAlive) continue;
+      var pRoles = RoleAssigner.GetRoles(p);
+      if (pRoles.Any(r => r is TraitorRole)) { traitorsAlive++; continue; }
+      nonTraitorsAlive++;
+      if (pRoles.Any(r => r is DetectiveRole)) detectivesAlive++;
+    }
 
     switch (traitorsAlive) {
       case 0 when nonTraitorsAlive == 0:

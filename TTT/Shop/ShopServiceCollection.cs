@@ -12,7 +12,6 @@ using TTT.CS2.Items.PoisonShots;
 using TTT.CS2.Items.PoisonSmoke;
 using TTT.CS2.Items.SilentAWP;
 using TTT.CS2.Items.Station;
-using TTT.CS2.Items.TeleportDecoy;
 using TTT.CS2.Items.Tripwire;
 using TTT.Shop.Commands;
 using TTT.Shop.Items.Detective.OneShotDeagle;
@@ -61,7 +60,6 @@ public static class ShopServiceCollection {
     collection.AddSilentAWPServices();
     collection.AddStickerServices();
     collection.AddTaserServices();
-    collection.AddTeleportDecoyServices();
     collection.AddTripwireServices();
   }
 }
