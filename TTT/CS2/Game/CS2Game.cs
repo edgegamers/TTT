@@ -82,8 +82,13 @@ public class CS2Game(IServiceProvider provider) : RoundBasedGame(provider) {
     var players = Utilities.GetPlayers()
      .Where(p => p is { Team: CsTeam.Terrorist or CsTeam.CounterTerrorist });
 
+    // Only players who are actually alive (spawned, Health > 0) count as round
+    // participants. A player who connects during the countdown has an async
+    // Respawn() scheduled; if StartRound fires before it completes they are on a
+    // team but still dead, and must not be assigned a role or recorded in stats.
     return players.Select(p => converter.GetPlayer(p))
      .OfType<IOnlinePlayer>()
+     .Where(p => p.IsAlive)
      .ToHashSet();
   }
 }
