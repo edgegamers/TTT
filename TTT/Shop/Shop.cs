@@ -15,6 +15,10 @@ public class Shop(IServiceProvider provider) : ITerrorModule, IShop {
   private readonly IEventBus bus = provider.GetRequiredService<IEventBus>();
   private readonly Dictionary<string, List<IShopItem>> items = new();
 
+  // player.Id -> item type key -> times purchased this round
+  private readonly Dictionary<string, Dictionary<string, int>> purchaseCounts =
+    new();
+
   private readonly IMsgLocalizer localizer =
     provider.GetRequiredService<IMsgLocalizer>();
 
@@ -54,12 +58,35 @@ public class Shop(IServiceProvider provider) : ITerrorModule, IShop {
       return canPurchase;
     }
 
+    var purchaseLimit = item.Config.PurchaseLimit;
+    var itemKey       = item.GetType().FullName ?? item.Name;
+    if (purchaseLimit > 0
+      && purchaseCounts.TryGetValue(player.Id, out var owned)
+      && owned.GetValueOrDefault(itemKey, 0) >= purchaseLimit) {
+      if (printReason)
+        messenger?.Message(player,
+          localizer[
+            ShopMsgs.SHOP_CANNOT_PURCHASE_WITH_REASON(
+              PurchaseResult.ALREADY_OWNED.ToMessage())]);
+      return PurchaseResult.ALREADY_OWNED;
+    }
+
     var purchaseEvent = new PlayerPurchaseItemEvent(player, item);
     bus.Dispatch(purchaseEvent);
     if (purchaseEvent.IsCanceled) return PurchaseResult.PURCHASE_CANCELED;
 
     AddBalance(player, -cost, item.Name, printReason);
     GiveItem(player, item);
+
+    if (purchaseLimit > 0) {
+      if (!purchaseCounts.TryGetValue(player.Id, out var counts)) {
+        counts                    = new Dictionary<string, int>();
+        purchaseCounts[player.Id] = counts;
+      }
+
+      counts[itemKey] = counts.GetValueOrDefault(itemKey, 0) + 1;
+    }
+
     return PurchaseResult.SUCCESS;
   }
 
@@ -90,7 +117,7 @@ public class Shop(IServiceProvider provider) : ITerrorModule, IShop {
   }
 
   public void ClearBalances() { balances.Clear(); }
-  public void ClearItems() { items.Clear(); }
+  public void ClearItems() { items.Clear(); purchaseCounts.Clear(); }
 
   public void GiveItem(IOnlinePlayer player, IShopItem item) {
     if (!items.ContainsKey(player.Id)) items[player.Id] = [];
