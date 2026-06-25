@@ -15,7 +15,6 @@ public static class SpecialRoundCollection {
     services.AddModBehavior<LowGravRound>();
     services.AddModBehavior<PistolRound>();
     services.AddModBehavior<RichRound>();
-    services.AddModBehavior<SilentRound>();
     services.AddModBehavior<SpeedRound>();
     services.AddModBehavior<SuppressedRound>();
     services.AddModBehavior<VanillaRound>();
