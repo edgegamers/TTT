@@ -26,4 +26,12 @@ public interface IRoleAssigner : IKeyedStorage<IPlayer, ICollection<IRole>>,
   public ICollection<IRole> GetRoles(IPlayer player) {
     return Load(player).GetAwaiter().GetResult() ?? [];
   }
+
+  /// <summary>
+  ///   Roles this player held in the *previous* round (empty if none / first
+  ///   round). Used by role selection to rotate roles between rounds.
+  /// </summary>
+  public ICollection<IRole> GetPreviousRoles(IPlayer player) {
+    return [];
+  }
 }
