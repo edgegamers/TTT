@@ -3,11 +3,13 @@ using Microsoft.Extensions.DependencyInjection;
 using ShopAPI;
 using ShopAPI.Configs;
 using TTT.API.Events;
+using TTT.API.Game;
 using TTT.API.Player;
 using TTT.API.Storage;
 using TTT.CS2.API;
 using TTT.CS2.Extensions;
 using TTT.Game.Events.Body;
+using TTT.Game.Events.Game;
 using TTT.Game.Listeners;
 
 namespace TTT.CS2.Items.BodyPaint;
@@ -34,6 +36,17 @@ public class BodyPaintListener(IServiceProvider provider)
     if (ev.Identifier == null || !usePaint(ev.Identifier)) return;
     ev.IsCanceled = true;
     body.SetColor(config.ColorToApply);
+  }
+
+  // Body paint is a per-round purchase. The shop clears item ownership each
+  // round, but the remaining-uses cache below was never reset, so leftover uses
+  // carried into later rounds and let a now-Innocent/Detective keep painting
+  // bodies (and get killed as a "traitor"). Clear it on round end.
+  [UsedImplicitly]
+  [EventHandler]
+  public void OnRoundEnd(GameStateUpdateEvent ev) {
+    if (ev.NewState != State.FINISHED) return;
+    uses.Clear();
   }
 
   private bool usePaint(IPlayer player) {
