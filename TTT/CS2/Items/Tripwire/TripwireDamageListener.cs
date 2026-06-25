@@ -33,12 +33,18 @@ public class TripwireDamageListener(IServiceProvider provider) : IPluginModule {
     if (tripwires == null) return HookResult.Continue;
     var hitVec = new Vector(ev.X, ev.Y, ev.Z);
 
+    // Skip tripwires whose prop has been removed/invalidated (still lingering
+    // in the list) — reading AbsOrigin on an invalid entity throws
+    // "Schema target points to null" on every bullet impact.
     var nearest = tripwires.ActiveTripwires
-     .OrderBy(wire => wire.TripwireProp.AbsOrigin.DistanceSquared(hitVec))
+     .Where(wire => wire.TripwireProp is { IsValid: true }
+        && wire.TripwireProp.AbsOrigin != null)
+     .OrderBy(wire => wire.TripwireProp.AbsOrigin!.DistanceSquared(hitVec))
      .FirstOrDefault();
 
     if (nearest == null) return HookResult.Continue;
-    var distSquared = nearest.TripwireProp.AbsOrigin.DistanceSquared(hitVec);
+    var distSquared =
+      nearest.TripwireProp.AbsOrigin!.DistanceSquared(hitVec);
     if (distSquared > config.TripwireSizeSquared) return HookResult.Continue;
 
     tripwireActivator?.ActivateTripwire(nearest);
