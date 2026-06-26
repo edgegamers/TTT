@@ -16,18 +16,6 @@ public class TTT(IServiceProvider provider) : BasePlugin {
   public override void Load(bool hotReload) {
     Logger.LogInformation($"{ModuleName} {ModuleVersion} Starting... ");
 
-    // TEMP crash instrumentation (file breadcrumbs in /tmp/ttt-crashdbg.log).
-    // Surfaces swallowed exceptions + a heartbeat to bound the crash time. Remove after.
-    CrashDbg.Crumb("=== BOOT " + ModuleVersion + " ===");
-    AppDomain.CurrentDomain.UnhandledException += (_, e)
-      => CrashDbg.Crumb("UNHANDLED " + e.ExceptionObject);
-    System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, e) => {
-      CrashDbg.Crumb("UNOBSERVED-TASK " + e.Exception);
-      e.SetObserved();
-    };
-    AddTimer(1.0f, () => CrashDbg.Crumb("heartbeat"),
-      CounterStrikeSharp.API.Modules.Timers.TimerFlags.REPEAT);
-
     scope = provider.CreateScope();
     var modules = scope.ServiceProvider.GetServices<ITerrorModule>().ToList();
     Logger.LogInformation($"Found {modules.Count} base modules to load.");
