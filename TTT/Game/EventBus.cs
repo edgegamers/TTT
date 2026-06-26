@@ -55,11 +55,8 @@ public class EventBus(IServiceProvider provider) : IEventBus, ITerrorModule {
     }
   }
 
-  // TEMP: flushed debug line to stdout (survives a native crash; remove after).
-  internal static void dbg(string m) {
-    Console.WriteLine("[TTT-DBG] " + m);
-    Console.Out.Flush();
-  }
+  // TEMP: file breadcrumb (survives a native crash; remove after).
+  internal static void dbg(string m) => TTT.API.CrashDbg.Crumb(m);
 
   public void Dispose() { handlers.Clear(); }
 
