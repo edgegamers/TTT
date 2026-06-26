@@ -4,6 +4,7 @@ using System.Text.Json;
 using CounterStrikeSharp.API;
 using JetBrains.Annotations;
 using Microsoft.Extensions.DependencyInjection;
+using ShopAPI.Events;
 using Stats.lang;
 using TTT.API.Events;
 using TTT.API.Game;
@@ -24,6 +25,12 @@ public class RoundListener(IServiceProvider provider)
 
   private readonly Dictionary<string, (int, int, int)> kills = new();
 
+  // Per-round credits earned (positive balance deltas), and per-player connect
+  // times for computing connected playtime. Feeds the seasons/awards stats.
+  private readonly Dictionary<string, int> creditsEarned = new();
+  private readonly Dictionary<string, DateTime> joinedAt = new();
+  private DateTime? roundStartedAt;
+
   private readonly IMsgLocalizer localizer =
     provider.GetRequiredService<IMsgLocalizer>();
 
@@ -42,15 +49,38 @@ public class RoundListener(IServiceProvider provider)
   [UsedImplicitly]
   [EventHandler(Priority = Priority.MONITOR, IgnoreCanceled = true)]
   public void OnGameState(GameStateUpdateEvent ev) {
+    // Reset earned-credits at countdown so the round-start role grant (fired
+    // during StartRound, before IN_PROGRESS) is counted toward this round.
+    if (ev.NewState == State.COUNTDOWN) creditsEarned.Clear();
+
     if (ev.NewState == State.IN_PROGRESS) {
       kills.Clear();
       bodiesFound.Clear();
+      deaths.Clear();
+      roundStartedAt = DateTime.UtcNow;
       Task.Run(async () => await onRoundStart(ev.Game));
     }
 
     var game = ev.Game;
     if (ev.NewState == State.FINISHED)
       Task.Run(async () => await onRoundEnd(game));
+  }
+
+  // Accumulate credits *earned* (positive deltas) per player for the round.
+  [UsedImplicitly]
+  [EventHandler(Priority = Priority.MONITOR, IgnoreCanceled = true)]
+  public void OnBalanceChange(PlayerBalanceEvent ev) {
+    if (ev.NewBalance <= ev.OldBalance) return;
+    var id = ev.Player.Id;
+    creditsEarned[id] = creditsEarned.GetValueOrDefault(id, 0)
+      + (ev.NewBalance - ev.OldBalance);
+  }
+
+  // Track when each player connected, to compute connected playtime per round.
+  [UsedImplicitly]
+  [EventHandler]
+  public void OnJoin(PlayerJoinEvent ev) {
+    joinedAt[ev.Player.Id] = DateTime.UtcNow;
   }
 
   [UsedImplicitly]
@@ -155,6 +185,9 @@ public class RoundListener(IServiceProvider provider)
   private List<Participant> getParticipants(IGame game) {
     var list = new List<Participant>();
 
+    var now        = DateTime.UtcNow;
+    var roundStart = roundStartedAt ?? now;
+
     foreach (var player in game.Players) {
       var playerRoles = roles.GetRoles(player);
       if (playerRoles.Count == 0) continue;
@@ -162,15 +195,25 @@ public class RoundListener(IServiceProvider provider)
       var role = StatsApi.ApiNameForRole(playerRoles.First());
       kills.TryGetValue(player.Id, out var killCounts);
       bodiesFound.TryGetValue(player.Id, out var foundCount);
+      creditsEarned.TryGetValue(player.Id, out var earned);
+
+      // Connected seconds within this round: from the later of round start or
+      // the player's connect time, up to now (round end when sent via PATCH).
+      var sessionStart = joinedAt.TryGetValue(player.Id, out var j) && j > roundStart
+        ? j
+        : roundStart;
+      var playtime = Math.Max(0, (int)(now - sessionStart).TotalSeconds);
 
       list.Add(new Participant {
-        steam_id        = player.Id,
-        role            = role,
-        inno_kills      = killCounts.Item1,
-        traitor_kills   = killCounts.Item2,
-        detective_kills = killCounts.Item3,
-        bodies_found    = foundCount,
-        died            = deaths.Contains(player.Id)
+        steam_id         = player.Id,
+        role             = role,
+        inno_kills       = killCounts.Item1,
+        traitor_kills    = killCounts.Item2,
+        detective_kills  = killCounts.Item3,
+        bodies_found     = foundCount,
+        died             = deaths.Contains(player.Id),
+        credits_earned   = earned,
+        playtime_seconds = playtime
       });
     }
 
@@ -185,5 +228,7 @@ public class RoundListener(IServiceProvider provider)
     public int? detective_kills { get; init; }
     public int? bodies_found { get; init; }
     public bool? died { get; init; }
+    public int? credits_earned { get; init; }
+    public int? playtime_seconds { get; init; }
   }
 }
