@@ -1,15 +1,14 @@
-﻿using System.Drawing;
-using System.Linq;
+﻿using System.Linq;
+using System.Text;
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Commands;
-using CounterStrikeSharp.API.Modules.Utils;
+using CounterStrikeSharp.API.Modules.Timers;
 using Microsoft.Extensions.DependencyInjection;
 using ShopAPI;
 using TTT.API;
 using TTT.API.Command;
 using TTT.API.Player;
-using TTT.CS2.Hats;
 
 namespace TTT.CS2.Command;
 
@@ -20,22 +19,19 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
   private readonly IItemSorter itemSorter =
     provider.GetRequiredService<IItemSorter>();
 
-  private readonly ITextSpawner? textSpawner =
-    provider.GetService<ITextSpawner>();
-
   private readonly IShop shop = provider.GetRequiredService<IShop>();
 
-  // On-screen shop menu entity per player slot (null = no menu open).
-  private readonly CPointWorldText?[] menus = new CPointWorldText?[64];
+  // slot -> (rendered html, expiry). Refreshed on a timer so it stays on screen.
+  private readonly Dictionary<int, (string html, DateTime expiry)> open = new();
 
   public void Dispose() { }
   public void Start() { }
 
   public void Start(BasePlugin? plugin) {
     plugin?.AddCommandListener("player_ping", onPlayerPing, HookMode.Post);
-    plugin
-    ?.RegisterListener<CounterStrikeSharp.API.Core.Listeners.CheckTransmit>(
-        onTransmit);
+
+    // Center HTML only shows for a moment, so re-send it while the menu is open.
+    plugin?.AddTimer(0.25f, refresh, TimerFlags.REPEAT);
 
     for (var i = 0; i < 10; i++) {
       var index = i; // Capture variable
@@ -44,8 +40,23 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     }
   }
 
-  // Ping now opens an on-screen list (was a chat dump). Buying is unchanged:
-  // the css_0..css_9 quick-buy commands below stay armed for 20s.
+  private void refresh() {
+    if (open.Count == 0) return;
+    var now = DateTime.Now;
+    foreach (var slot in open.Keys.ToList()) {
+      var (html, expiry) = open[slot];
+      var controller     = Utilities.GetPlayerFromSlot(slot);
+      if (now > expiry || controller is not { IsValid: true, PawnIsAlive: true }) {
+        open.Remove(slot);
+        continue;
+      }
+
+      controller.PrintToCenterHtml(html);
+    }
+  }
+
+  // Ping opens an on-screen (center HTML) list. Buying is unchanged: the
+  // css_0..css_9 quick-buy commands below stay armed for 20s.
   private HookResult onPlayerPing(CCSPlayerController? player,
     CommandInfo commandInfo) {
     if (player == null || !player.IsValid) return HookResult.Continue;
@@ -54,75 +65,35 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
 
     // Snapshot + arm the css_N order, then render once we have the balance.
     var items = itemSorter.GetSortedItems(apiPlayer, true);
+    var slot  = player.Slot;
     Task.Run(async () => {
       var balance = await shop.Load(apiPlayer);
-      Server.NextWorldUpdate(() => renderMenu(player, apiPlayer, items, balance));
+      Server.NextWorldUpdate(() => {
+        open[slot] = (buildHtml(apiPlayer, items, balance),
+          DateTime.Now.AddSeconds(12));
+      });
     });
 
     return HookResult.Continue;
   }
 
-  private void renderMenu(CCSPlayerController player, IOnlinePlayer apiPlayer,
-    List<IShopItem> items, int balance) {
-    if (textSpawner == null || !player.IsValid) return;
-
-    var text = buildMenuText(apiPlayer, items, balance);
-    removeMenu(player.Slot);
-
-    try {
-      var ent = textSpawner.CreateTextScreen(new TextSetting {
-        msg = text, color = Color.White, fontSize = 26, worldUnitsPerPx = 0.013f
-      }, player).FirstOrDefault();
-      if (ent == null) return;
-      menus[player.Slot] = ent;
-
-      // Auto-close after ~12s so it doesn't linger in front of the player.
-      var captured = ent;
-      Server.RunOnTick(Server.TickCount + 64 * 12, () => {
-        if (menus[player.Slot] == captured) removeMenu(player.Slot);
-      });
-    } catch {
-      // entity creation can throw if the pawn isn't ready; ignore.
-    }
-  }
-
-  private string buildMenuText(IOnlinePlayer apiPlayer, List<IShopItem> items,
+  private string buildHtml(IOnlinePlayer apiPlayer, List<IShopItem> items,
     int balance) {
-    var lines = new List<string> { $"=( eGO )= SHOP    {balance} credits", "" };
+    var sb = new StringBuilder();
+    sb.Append(
+      $"<font color='#4ea1ff'>=(eGO)= SHOP</font>  <font color='#cccccc'>{balance} credits</font><br>");
 
     for (var i = 0; i < items.Count; i++) {
       var item   = items[i];
       var canBuy = item.CanPurchase(apiPlayer) == PurchaseResult.SUCCESS
         && item.Config.Price <= balance;
-      var num  = (i + 1).ToString().PadLeft(2);
-      var name = item.Name.Length > 22
-        ? item.Name[..22]
-        : item.Name.PadRight(22);
-      var price = item.Config.Price.ToString().PadLeft(4);
-      lines.Add(canBuy ? $"{num}  {name} {price}" : $"{num}  {name} {price}  x");
+      var color = canBuy ? "#7CFC00" : "#888888";
+      sb.Append(
+        $"<font color='{color}'>{i + 1}. {item.Name} — {item.Config.Price}</font><br>");
     }
 
-    lines.Add("");
-    lines.Add("press 1-9 (bound to css_N) to buy");
-    return string.Join("\n", lines);
-  }
-
-  private void onTransmit(CCheckTransmitInfoList infoList) {
-    foreach (var (info, player) in infoList) {
-      if (player == null || !player.IsValid) continue;
-      // A player should only see their own on-screen menu.
-      for (var i = 0; i < menus.Length; i++) {
-        if (i == player.Slot) continue;
-        var ent = menus[i];
-        if (ent != null && ent.IsValid) info.TransmitEntities.Remove(ent);
-      }
-    }
-  }
-
-  private void removeMenu(int slot) {
-    var ent = menus[slot];
-    if (ent != null && ent.IsValid) ent.AcceptInput("Kill");
-    menus[slot] = null;
+    sb.Append("<font color='#aaaaaa'>press 1-9 (bound to css_N) to buy</font>");
+    return sb.ToString();
   }
 
   private void onButton(CCSPlayerController? player, int index) {
