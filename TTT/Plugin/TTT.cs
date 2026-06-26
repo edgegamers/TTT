@@ -18,14 +18,14 @@ public class TTT(IServiceProvider provider) : BasePlugin {
 
     // TEMP crash instrumentation (file breadcrumbs in /tmp/ttt-crashdbg.log).
     // Surfaces swallowed exceptions + a heartbeat to bound the crash time. Remove after.
-    TTT.API.CrashDbg.Crumb("=== BOOT " + ModuleVersion + " ===");
+    CrashDbg.Crumb("=== BOOT " + ModuleVersion + " ===");
     AppDomain.CurrentDomain.UnhandledException += (_, e)
-      => TTT.API.CrashDbg.Crumb("UNHANDLED " + e.ExceptionObject);
+      => CrashDbg.Crumb("UNHANDLED " + e.ExceptionObject);
     System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, e) => {
-      TTT.API.CrashDbg.Crumb("UNOBSERVED-TASK " + e.Exception);
+      CrashDbg.Crumb("UNOBSERVED-TASK " + e.Exception);
       e.SetObserved();
     };
-    AddTimer(1.0f, () => TTT.API.CrashDbg.Crumb("heartbeat"),
+    AddTimer(1.0f, () => CrashDbg.Crumb("heartbeat"),
       CounterStrikeSharp.API.Modules.Timers.TimerFlags.REPEAT);
 
     scope = provider.CreateScope();
