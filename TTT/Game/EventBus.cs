@@ -43,8 +43,22 @@ public class EventBus(IServiceProvider provider) : IEventBus, ITerrorModule {
       ?.IgnoreCanceled == true)
         continue;
 
-      method.Invoke(listener, [ev]);
+      // TEMP crash instrumentation: flushed breadcrumbs so the last line before a
+      // native crash names the handler; managed throws are caught + logged.
+      var crumb = $"{type.Name}->{listener.GetType().Name}.{method.Name}";
+      dbg("evt:before " + crumb);
+      try { method.Invoke(listener, [ev]); }
+      catch (Exception e) {
+        dbg("evt:ERROR " + crumb + " :: " + (e.InnerException ?? e));
+      }
+      dbg("evt:after " + crumb);
     }
+  }
+
+  // TEMP: flushed debug line to stdout (survives a native crash; remove after).
+  internal static void dbg(string m) {
+    Console.WriteLine("[TTT-DBG] " + m);
+    Console.Out.Flush();
   }
 
   public void Dispose() { handlers.Clear(); }
