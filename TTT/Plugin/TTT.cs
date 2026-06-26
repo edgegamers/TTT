@@ -16,17 +16,17 @@ public class TTT(IServiceProvider provider) : BasePlugin {
   public override void Load(bool hotReload) {
     Logger.LogInformation($"{ModuleName} {ModuleVersion} Starting... ");
 
-    // TEMP crash instrumentation: surface anything currently swallowed
-    // (process-terminating throws + unobserved async exceptions). Remove after.
-    AppDomain.CurrentDomain.UnhandledException += (_, e) => {
-      Console.WriteLine("[TTT-DBG] UNHANDLED " + e.ExceptionObject);
-      Console.Out.Flush();
-    };
+    // TEMP crash instrumentation (file breadcrumbs in /tmp/ttt-crashdbg.log).
+    // Surfaces swallowed exceptions + a heartbeat to bound the crash time. Remove after.
+    TTT.API.CrashDbg.Crumb("=== BOOT " + ModuleVersion + " ===");
+    AppDomain.CurrentDomain.UnhandledException += (_, e)
+      => TTT.API.CrashDbg.Crumb("UNHANDLED " + e.ExceptionObject);
     System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, e) => {
-      Console.WriteLine("[TTT-DBG] UNOBSERVED-TASK " + e.Exception);
-      Console.Out.Flush();
+      TTT.API.CrashDbg.Crumb("UNOBSERVED-TASK " + e.Exception);
       e.SetObserved();
     };
+    AddTimer(1.0f, () => TTT.API.CrashDbg.Crumb("heartbeat"),
+      CounterStrikeSharp.API.Modules.Timers.TimerFlags.REPEAT);
 
     scope = provider.CreateScope();
     var modules = scope.ServiceProvider.GetServices<ITerrorModule>().ToList();
