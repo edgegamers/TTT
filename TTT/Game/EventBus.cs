@@ -43,20 +43,9 @@ public class EventBus(IServiceProvider provider) : IEventBus, ITerrorModule {
       ?.IgnoreCanceled == true)
         continue;
 
-      // TEMP crash instrumentation: flushed breadcrumbs so the last line before a
-      // native crash names the handler; managed throws are caught + logged.
-      var crumb = $"{type.Name}->{listener.GetType().Name}.{method.Name}";
-      dbg("evt:before " + crumb);
-      try { method.Invoke(listener, [ev]); }
-      catch (Exception e) {
-        dbg("evt:ERROR " + crumb + " :: " + (e.InnerException ?? e));
-      }
-      dbg("evt:after " + crumb);
+      method.Invoke(listener, [ev]);
     }
   }
-
-  // TEMP: file breadcrumb (survives a native crash; remove after).
-  internal static void dbg(string m) => TTT.API.CrashDbg.Crumb(m);
 
   public void Dispose() { handlers.Clear(); }
 
