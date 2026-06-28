@@ -52,7 +52,10 @@ public class DeathLogListener(IServiceProvider provider)
       Timestamp = DateTime.UtcNow, IsSuspect = suspect, Fault = fault
     };
 
-    _ = store.AddDeath(record);
+    _ = store.AddDeath(record).ContinueWith(
+      t => Messenger.Debug("RDM: failed to log death: {0}",
+        t.Exception?.Message ?? "unknown"),
+      TaskContinuationOptions.OnlyOnFaulted);
 
     if (suspect && config.AutoPromptOnSuspectKill)
       Messenger.Message(victim, Locale[RdmMsgs.RDM_PROMPT(killer.Name)]);
