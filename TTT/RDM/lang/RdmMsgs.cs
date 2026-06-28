@@ -51,4 +51,28 @@ public static class RdmMsgs {
   public static IMsg RDM_CASE_NOT_FOUND() {
     return MsgFactory.Create(nameof(RDM_CASE_NOT_FOUND));
   }
+
+  public static IMsg RDM_HANDLED(int caseId, string victim, string attacker) {
+    return MsgFactory.Create(nameof(RDM_HANDLED), caseId, victim, attacker);
+  }
+
+  public static IMsg RDM_NO_OPEN_CASES() {
+    return MsgFactory.Create(nameof(RDM_NO_OPEN_CASES));
+  }
+
+  public static IMsg RDM_NO_CLAIMED_CASE() {
+    return MsgFactory.Create(nameof(RDM_NO_CLAIMED_CASE));
+  }
+
+  public static IMsg RDM_VERDICT_USAGE() {
+    return MsgFactory.Create(nameof(RDM_VERDICT_USAGE));
+  }
+
+  public static IMsg RDM_VERDICT_GUILTY(int caseId, int slays) {
+    return MsgFactory.Create(nameof(RDM_VERDICT_GUILTY), caseId, slays);
+  }
+
+  public static IMsg RDM_VERDICT_FORGIVEN(int caseId) {
+    return MsgFactory.Create(nameof(RDM_VERDICT_FORGIVEN), caseId);
+  }
 }

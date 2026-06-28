@@ -10,4 +10,5 @@ public interface ICaseManager {
   Task<RdmCase?> Claim(IPlayer admin, int caseId);
   Task Resolve(int caseId, Verdict verdict, IPlayer admin);
   Task<IReadOnlyList<RdmCase>> GetOpen();
+  Task<RdmCase?> GetClaimedBy(string adminId);
 }

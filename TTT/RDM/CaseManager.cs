@@ -90,4 +90,10 @@ public class CaseManager(IServiceProvider provider) : ICaseManager {
   }
 
   public Task<IReadOnlyList<RdmCase>> GetOpen() { return store.GetOpenCases(); }
+
+  public async Task<RdmCase?> GetClaimedBy(string adminId) {
+    var open = await store.GetOpenCases();
+    return open.FirstOrDefault(c
+      => c.State == CaseState.Claimed && c.HandlerAdminId == adminId);
+  }
 }
