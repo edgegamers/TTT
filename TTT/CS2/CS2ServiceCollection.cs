@@ -25,6 +25,7 @@ using TTT.CS2.Player;
 using TTT.Game;
 using TTT.Karma;
 using TTT.Locale;
+using TTT.RDM;
 
 namespace TTT.CS2;
 
@@ -51,6 +52,7 @@ public static class CS2ServiceCollection {
     collection
      .AddModBehavior<IStorage<PoisonSmokeConfig>, CS2PoisonSmokeConfig>();
     collection.AddModBehavior<IStorage<KarmaConfig>, CS2KarmaConfig>();
+    collection.AddModBehavior<IStorage<RdmConfig>, CS2RdmConfig>();
     collection.AddModBehavior<IStorage<CamoConfig>, CS2CamoConfig>();
     collection.AddModBehavior<IStorage<StickersConfig>, CS2StickersConfig>();
     collection.AddModBehavior<IStorage<BodyPaintConfig>, CS2BodyPaintConfig>();
