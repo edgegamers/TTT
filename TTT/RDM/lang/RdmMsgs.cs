@@ -32,4 +32,23 @@ public static class RdmMsgs {
   public static IMsg RDM_REPORT_REJECTED() {
     return MsgFactory.Create(nameof(RDM_REPORT_REJECTED));
   }
+
+  public static IMsg RDM_CASES_COUNT(int count) {
+    return MsgFactory.Create(nameof(RDM_CASES_COUNT), count);
+  }
+
+  public static IMsg RDM_CASES_ENTRY(int caseId, string victim,
+    string attacker) {
+    return MsgFactory.Create(nameof(RDM_CASES_ENTRY), caseId, victim, attacker);
+  }
+
+  public static IMsg RDM_INFO(int caseId, string victim, string victimRole,
+    string attacker, string attackerRole, string weapon, string reason) {
+    return MsgFactory.Create(nameof(RDM_INFO), caseId, victim, victimRole,
+      attacker, attackerRole, weapon, reason);
+  }
+
+  public static IMsg RDM_CASE_NOT_FOUND() {
+    return MsgFactory.Create(nameof(RDM_CASE_NOT_FOUND));
+  }
 }
