@@ -1,2 +1,7 @@
 RDM_PROMPT: "%PREFIX%You were killed by {yellow}{0}{grey}. Type {yellow}!rdm{grey} to report it, or ignore (defaults to not RDM)."
 RDM_STAFF_NEW_REPORT: "%PREFIX%{red}[RDM]{grey} New report #{2}: {yellow}{0}{grey} reported {yellow}{1}{grey}."
+RDM_LIST_HEADER: "%PREFIX%Recent suspect deaths — type {yellow}!rdm <number>{grey} to report:"
+RDM_LIST_ENTRY: "{yellow}{0}{grey}. Killed by {yellow}{1}"
+RDM_LIST_EMPTY: "%PREFIX%You have no recent suspect deaths to report."
+RDM_REPORT_FILED: "%PREFIX%Report {yellow}#{0}{grey} filed. Staff have been notified."
+RDM_REPORT_REJECTED: "%PREFIX%{red}Could not file that report{grey} (too late, already reported, or invalid)."

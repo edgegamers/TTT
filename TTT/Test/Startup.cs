@@ -46,6 +46,7 @@ public class Startup {
     services.AddScoped<IDamageTracker, DamageTracker>();
     services.AddScoped<IRdmStore, InMemoryRdmStore>();
     services.AddScoped<ICaseManager, CaseManager>();
+    services.AddScoped<DeathLogListener>();
 
     services.AddModBehavior<GenericInitTester>();
     services.AddModBehavior<PluginInitTester>();
