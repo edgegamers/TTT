@@ -7,5 +7,5 @@ RDM_REPORT_FILED: "%PREFIX%Report {yellow}#{0}{grey} filed. Staff have been noti
 RDM_REPORT_REJECTED: "%PREFIX%{red}Could not file that report{grey} (too late, already reported, or invalid)."
 RDM_CASES_COUNT: "%PREFIX%There {yellow}{0}{grey} open RDM case%s%."
 RDM_CASES_ENTRY: "{yellow}#{0}{grey}: {yellow}{1}{grey} vs {yellow}{2}"
-RDM_INFO: "%PREFIX%Case {yellow}#{0}{grey}: {yellow}{1}{grey} ({3}) killed by {yellow}{2}{grey} ({4}) with {yellow}{5}{grey}. Reason: {6}"
+RDM_INFO: "%PREFIX%Case {yellow}#{0}{grey}: {yellow}{1}{grey} ({2}) killed by {yellow}{3}{grey} ({4}) with {yellow}{5}{grey}. Reason: {6}"
 RDM_CASE_NOT_FOUND: "%PREFIX%{red}No such case.{grey}"

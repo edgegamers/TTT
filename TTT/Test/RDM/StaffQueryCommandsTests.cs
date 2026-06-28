@@ -79,7 +79,10 @@ public class StaffQueryCommandsTests {
     var result = await commands.ProcessCommand(
       new TestCommandInfo(provider, admin, "info", c.Id.ToString()));
     Assert.Equal(CommandResult.SUCCESS, result);
-    Assert.Contains(admin.Messages,
-      m => m.Contains("Killer") && m.Contains("spawn kill"));
+    Assert.Contains(admin.Messages, m =>
+      m.Contains("killed by")
+      && m.IndexOf("Killer", StringComparison.Ordinal)
+         > m.IndexOf("killed by", StringComparison.Ordinal)
+      && m.Contains("spawn kill"));
   }
 }
