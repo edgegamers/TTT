@@ -72,6 +72,22 @@ public class CaseManagerTests {
   }
 
   [Fact]
+  public async Task ClaimNext_PicksOldestOpenCase() {
+    var v1 = TestPlayer.Random();
+    var v2 = TestPlayer.Random();
+    players.AddPlayers(v1, v2);
+    var death1 = await SeedSuspectDeath(v1);
+    var death2 = await SeedSuspectDeath(v2);
+    var first  = await manager.FileReport(v1, death1, null);
+    await manager.FileReport(v2, death2, null);
+
+    var admin   = TestPlayer.Random();
+    var claimed = await manager.ClaimNext(admin);
+    Assert.NotNull(claimed);
+    Assert.Equal(first!.Id, claimed!.Id); // oldest filed is claimed first
+  }
+
+  [Fact]
   public async Task Resolve_ClosesCase() {
     var victim  = TestPlayer.Random();
     players.AddPlayer(victim);

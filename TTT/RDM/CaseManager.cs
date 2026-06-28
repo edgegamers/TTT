@@ -63,7 +63,9 @@ public class CaseManager(IServiceProvider provider) : ICaseManager {
 
   public async Task<RdmCase?> ClaimNext(IPlayer admin) {
     var open = await store.GetOpenCases();
-    var next = open.FirstOrDefault(c => c.State == CaseState.Open);
+    var next = open.Where(c => c.State == CaseState.Open)
+      .OrderBy(c => c.Id)
+      .FirstOrDefault();
     if (next == null) return null;
     return await Claim(admin, next.Id);
   }
