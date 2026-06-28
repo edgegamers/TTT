@@ -17,6 +17,7 @@ using TTT.Game.Damage;
 using TTT.Game.Roles;
 using TTT.Karma;
 using TTT.Locale;
+using TTT.RDM;
 using TTT.Test.Abstract;
 using TTT.Test.Fakes;
 
@@ -43,6 +44,7 @@ public class Startup {
     services.AddScoped<IKarmaUpdateManager, KarmaUpdateManager>();
     services.AddScoped<IKarmaService, MemoryKarmaStorage>();
     services.AddScoped<IDamageTracker, DamageTracker>();
+    services.AddScoped<IRdmStore, InMemoryRdmStore>();
 
     services.AddModBehavior<GenericInitTester>();
     services.AddModBehavior<PluginInitTester>();
