@@ -13,6 +13,7 @@ using TTT.API.Role;
 using TTT.API.Storage;
 using TTT.Game;
 using TTT.Game.Commands;
+using TTT.Game.Damage;
 using TTT.Game.Roles;
 using TTT.Karma;
 using TTT.Locale;
@@ -41,6 +42,7 @@ public class Startup {
     services.AddScoped<IShop, TTT.Shop.Shop>();
     services.AddScoped<IKarmaUpdateManager, KarmaUpdateManager>();
     services.AddScoped<IKarmaService, MemoryKarmaStorage>();
+    services.AddScoped<IDamageTracker, DamageTracker>();
 
     services.AddModBehavior<GenericInitTester>();
     services.AddModBehavior<PluginInitTester>();
