@@ -45,6 +45,7 @@ public class Startup {
     services.AddScoped<IKarmaService, MemoryKarmaStorage>();
     services.AddScoped<IDamageTracker, DamageTracker>();
     services.AddScoped<IRdmStore, InMemoryRdmStore>();
+    services.AddScoped<ICaseManager, CaseManager>();
 
     services.AddModBehavior<GenericInitTester>();
     services.AddModBehavior<PluginInitTester>();

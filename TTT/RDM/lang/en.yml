@@ -1,1 +1,2 @@
 RDM_PROMPT: "%PREFIX%You were killed by {yellow}{0}{grey}. Type {yellow}!rdm{grey} to report it, or ignore (defaults to not RDM)."
+RDM_STAFF_NEW_REPORT: "%PREFIX%{red}[RDM]{grey} New report #{2}: {yellow}{0}{grey} reported {yellow}{1}{grey}."
