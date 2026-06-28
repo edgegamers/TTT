@@ -85,4 +85,26 @@ public class SqliteRdmStoreTests {
     Assert.True(await store.HasReport("v", deathId));
     Assert.Equal(1, await store.CountReportsByVictim("v", 1));
   }
+
+  [Fact]
+  public async Task GetAllSlayDebts_ReturnsOnlyPositiveRemaining() {
+    using var store = NewStore();
+    await store.SetSlayDebt("p1", 3, 10);
+    await store.SetSlayDebt("p2", 1, 11);
+    var all = await store.GetAllSlayDebts();
+    Assert.Equal(2, all.Count);
+    Assert.Contains(all, d => d.PlayerId == "p1" && d.RemainingSlays == 3
+      && d.SourceCaseId == 10);
+  }
+
+  [Fact]
+  public async Task SetSlayDebt_ZeroOrNegative_RemovesRow() {
+    using var store = NewStore();
+    await store.SetSlayDebt("p", 4, 1);
+    Assert.Equal(4, await store.GetSlayDebt("p"));
+
+    await store.SetSlayDebt("p", 0, 1);
+    Assert.Equal(0, await store.GetSlayDebt("p"));
+    Assert.Empty(await store.GetAllSlayDebts());
+  }
 }
