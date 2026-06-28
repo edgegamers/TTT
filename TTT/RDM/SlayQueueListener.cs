@@ -16,6 +16,9 @@ public class SlayQueueListener(IServiceProvider provider)
   [UsedImplicitly]
   public void OnRoundStart(GameStateUpdateEvent ev) {
     if (ev.NewState != State.IN_PROGRESS) return;
-    Task.Run(async () => await slay.PayRoundStart());
+    _ = Task.Run(async () => await slay.PayRoundStart())
+      .ContinueWith(t => Messenger.Debug("RDM: slay payout failed: {0}",
+        t.Exception?.Message ?? "unknown"),
+        TaskContinuationOptions.OnlyOnFaulted);
   }
 }

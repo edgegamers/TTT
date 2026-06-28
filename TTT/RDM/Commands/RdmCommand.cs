@@ -21,7 +21,7 @@ public class RdmCommand(IServiceProvider provider) : ICommand {
   public void Dispose() { }
   public void Start() { }
   public string Id => "rdm";
-  public string? Description => "File or dismiss an RDM report for your death";
+  public string? Description => "List suspect deaths this round or file a report.";
   public string[] Usage => ["[number] [reason]"];
 
   public async Task<CommandResult> Execute(IOnlinePlayer? executor,

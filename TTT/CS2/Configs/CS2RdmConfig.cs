@@ -50,6 +50,11 @@ public class CS2RdmConfig : IStorage<RdmConfig>, IPluginModule {
   public void Dispose() { }
   public void Start() { }
 
+  public void Start(BasePlugin? plugin) {
+    ArgumentNullException.ThrowIfNull(plugin, nameof(plugin));
+    plugin.RegisterFakeConVars(this);
+  }
+
   public Task<RdmConfig?> Load() {
     return Task.FromResult<RdmConfig?>(new RdmConfig {
       DbString = CV_DB_STRING.Value,
