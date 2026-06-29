@@ -6,6 +6,7 @@ using Stats;
 using TTT.CS2;
 using TTT.Game;
 using TTT.Karma;
+using TTT.RDM;
 using TTT.RTD;
 using TTT.Shop;
 
@@ -16,6 +17,7 @@ public class TTTServiceCollection : IPluginServiceCollection<TTT> {
     serviceCollection.AddScoped<IScheduler>(_ => Scheduler.Default);
 
     serviceCollection.AddKarmaService();
+    serviceCollection.AddRdmService();
     serviceCollection.AddGameServices();
     serviceCollection.AddCS2Services();
     serviceCollection.AddShopServices();
