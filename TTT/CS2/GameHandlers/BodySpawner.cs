@@ -80,8 +80,7 @@ public class BodySpawner(IServiceProvider provider) : IPluginModule {
       throw new ArgumentException("Pawn AbsOrigin is null",
         nameof(playerController));
 
-    origin.Z      += 30;
-    ragdoll.Speed =  0;
+    origin.Z += 30;
 
     ragdoll.CBodyComponent!.SceneNode!.Owner!.Entity!.Flags =
       (uint)(ragdoll.CBodyComponent!.SceneNode!.Owner!.Entity!.Flags
