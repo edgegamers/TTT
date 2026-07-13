@@ -60,7 +60,12 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     if (player == null || !player.IsValid) return HookResult.Continue;
 
     var slot = player.Slot;
-    if (open.Remove(slot)) return HookResult.Continue; // re-ping closes it
+    var wasOpen = open.Remove(slot);
+    // TEMP diag (remove after confirming): does a 2nd ping even reach us, and
+    // was the menu still open at that point? Distinguishes ping-cooldown
+    // swallowing the re-ping vs. an async open/close race.
+    Server.PrintToConsole($"[TTT/shop] player_ping slot={slot} wasOpen={wasOpen}");
+    if (wasOpen) return HookResult.Continue; // re-ping closes it
 
     if (converter.GetPlayer(player) is not IOnlinePlayer apiPlayer)
       return HookResult.Continue;
@@ -93,6 +98,10 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     } else if (pressed.HasFlag(PlayerButtons.Back)) {
       menu.Selected = (menu.Selected + 1) % menu.Items.Count;
       menu.Expiry   = DateTime.Now.AddSeconds(MenuSeconds);
+    } else if (pressed.HasFlag(PlayerButtons.Reload)) {
+      // Reliable close. A re-ping can be swallowed by CS2's ping cooldown, so
+      // give the menu a cooldown-immune dismiss via the always-live button hook.
+      open.Remove(player.Slot);
     } else if (pressed.HasFlag(PlayerButtons.Use)) {
       var index = menu.Selected;
       open.Remove(player.Slot);
@@ -134,7 +143,7 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     }
 
     sb.Append(
-      "<font color='#aaaaaa'>W / S move &nbsp;•&nbsp; E buy &nbsp;•&nbsp; ping again to close</font>");
+      "<font color='#aaaaaa'>W / S move &nbsp;•&nbsp; E buy &nbsp;•&nbsp; R (or ping) to close</font>");
     return sb.ToString();
   }
 
