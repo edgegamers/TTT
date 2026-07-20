@@ -1,4 +1,3 @@
-using System.Drawing;
 using System.Linq;
 using System.Text;
 using CounterStrikeSharp.API;
@@ -11,17 +10,19 @@ using ShopAPI;
 using TTT.API;
 using TTT.API.Command;
 using TTT.API.Player;
-using TTT.CS2.Extensions;
-using Vector = CounterStrikeSharp.API.Modules.Utils.Vector;
 
 namespace TTT.CS2.Command;
 
 // Ping opens an on-screen, navigable shop menu — no key binds required:
-//   Left / Right arrow -> move the highlight,  E (use) -> buy,  ping/R -> close.
-// The menu is drawn as a world-text entity parented to the player (not the
-// survival-respawn HUD panel), so closing kills the entity for an instant,
-// boxless dismiss instead of the HUD panel's multi-second lingering box.
-// css_0..css_9 remain as an optional quick-buy for anyone who binds keys.
+//   Left / Right arrow -> move the highlight,  E (use) -> buy,  R / ping -> close.
+// Arrow keys drive navigation because, unlike W/S, they don't walk the player
+// around while they browse. css_0..css_9 remain an optional quick-buy.
+//
+// The menu is drawn with PrintToCenterHtml (the survival-respawn HUD panel).
+// A world-text entity would allow an instant, boxless close, but point_worldtext
+// parented to a player's own pawn is not rendered for that player (verified on
+// dev 2026-07-20), so it cannot back an owner-facing menu. The trade-off here is
+// that the panel lingers a couple of seconds after close before it times out.
 public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
   private readonly IPlayerConverter<CCSPlayerController> converter =
     provider.GetRequiredService<IPlayerConverter<CCSPlayerController>>();
@@ -32,19 +33,17 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
   private readonly IShop shop = provider.GetRequiredService<IShop>();
 
   private sealed class Menu {
-    public required List<IShopItem>  Items;
-    public required IOnlinePlayer    Player;
-    public          int              Balance;
-    public          int              Selected;
-    public          DateTime               Expiry;
-    public          List<CPointWorldText>  Texts = new();
+    public required List<IShopItem> Items;
+    public required IOnlinePlayer   Player;
+    public          int             Balance;
+    public          int             Selected;
+    public          DateTime        Expiry;
   }
 
-  // slot -> open menu. The world-text entity persists on its own; the timer
-  // only enforces expiry / cleanup, and navigation re-renders on demand.
+  // slot -> open menu. Re-rendered on a timer; navigated via the buttons hook.
   private readonly Dictionary<int, Menu> open        = new();
   private const    int                   MenuSeconds = 15;
-  private const    float                 TickSeconds = 0.5f;
+  private const    float                 RefreshSeconds = 0.25f;
 
   public void Dispose() { }
   public void Start() { }
@@ -54,9 +53,8 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     plugin?.RegisterListener<
       CounterStrikeSharp.API.Core.Listeners.OnPlayerButtonsChanged>(onButtons);
 
-    // Enforce the 15s timeout and clean up if the player dies / the entity is
-    // killed elsewhere (e.g. round end kills all world-text).
-    plugin?.AddTimer(TickSeconds, tick, TimerFlags.REPEAT);
+    // Center HTML only shows for a moment, so re-send it while the menu is open.
+    plugin?.AddTimer(RefreshSeconds, refresh, TimerFlags.REPEAT);
 
     for (var i = 0; i < 10; i++) {
       var index = i; // capture
@@ -81,15 +79,10 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     Task.Run(async () => {
       var balance = await shop.Load(apiPlayer);
       Server.NextWorldUpdate(() => {
-        var controller = Utilities.GetPlayerFromSlot(slot);
-        if (controller is not { IsValid: true }) return;
-
-        var menu = new Menu {
+        open[slot] = new Menu {
           Items  = items, Player = apiPlayer, Balance = balance, Selected = 0,
           Expiry = DateTime.Now.AddSeconds(MenuSeconds)
         };
-        open[slot] = menu;
-        render(controller, menu);
       });
     });
 
@@ -107,11 +100,9 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     if (pressed.HasFlag(PlayerButtons.Left)) {
       menu.Selected = (menu.Selected - 1 + menu.Items.Count) % menu.Items.Count;
       menu.Expiry   = DateTime.Now.AddSeconds(MenuSeconds);
-      render(player, menu);
     } else if (pressed.HasFlag(PlayerButtons.Right)) {
       menu.Selected = (menu.Selected + 1) % menu.Items.Count;
       menu.Expiry   = DateTime.Now.AddSeconds(MenuSeconds);
-      render(player, menu);
     } else if (pressed.HasFlag(PlayerButtons.Reload)) {
       // Cooldown-immune close: a re-ping can be swallowed by CS2's ping cooldown.
       closeMenu(player.Slot);
@@ -124,138 +115,45 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     }
   }
 
-  // Instant, boxless close: killing the world-text entity removes it at once.
-  private bool closeMenu(int slot) {
-    if (!open.Remove(slot, out var menu)) return false;
-    killText(menu);
-    return true;
-  }
+  // Close by ceasing to re-send: the last rendered frame times out by itself.
+  // We deliberately do NOT push a blank/empty frame here — an empty message
+  // wedges the survival-respawn panel on screen permanently.
+  private bool closeMenu(int slot) { return open.Remove(slot); }
 
-  private void tick() {
+  private void refresh() {
     if (open.Count == 0) return;
     var now = DateTime.Now;
     foreach (var slot in open.Keys.ToList()) {
       var menu       = open[slot];
       var controller = Utilities.GetPlayerFromSlot(slot);
       if (now > menu.Expiry
-        || controller is not { IsValid: true, PawnIsAlive: true }
-        || menu.Texts.Count == 0
-        || menu.Texts.TrueForAll(t => !t.IsValid))
+        || controller is not { IsValid: true, PawnIsAlive: true }) {
         closeMenu(slot);
+        continue;
+      }
+
+      controller.PrintToCenterHtml(buildHtml(menu));
     }
   }
 
-  // How far in front of the eyes the panel floats, and how large the text is.
-  // worldUnitsPerPx is deliberately small — the shared TextSpawner default (0.5)
-  // is sized for a single head-letter and renders a whole menu block gigantic.
-  private const float MenuDistance    = 50f;
-  private const float MenuFontSize    = 50f;
-  private const float MenuUnitsPerPx  = 0.1f; // DEBUG: deliberately large
+  private string buildHtml(Menu menu) {
+    var sb = new StringBuilder();
+    sb.Append(
+      $"<font color='#4ea1ff'>=(eGO)= SHOP</font>  <font color='#cccccc'>{menu.Balance} credits</font><br>");
 
-  // DEBUG facing probe: one panel per yaw offset, each a distinct color. If
-  // point_worldtext is single-sided, exactly one color faces the player and
-  // tells us the correct yaw. If none show, it is not a facing problem.
-  private static readonly (float yaw, Color color)[] Facings = {
-    (0f, Color.White), (90f, Color.Red), (180f, Color.Lime), (270f, Color.Cyan)
-  };
-
-  // Kill the current entities and spawn a fresh set with the current selection.
-  private void render(CCSPlayerController controller, Menu menu) {
-    killText(menu);
-
-    var msg = buildText(menu);
-    if (msg.Length > 500) msg = msg[..500]; // hard cap: never exceed the buffer
-
-    try {
-      menu.Texts = spawnMenuTexts(controller, msg);
-      Server.PrintToConsole(
-        $"[shop] render len={msg.Length} count={menu.Texts.Count}");
-    } catch (Exception e) {
-      menu.Texts = new List<CPointWorldText>();
-      Server.PrintToConsole($"[shop] render THREW: {e.Message}");
-    }
-  }
-
-  // Spawn the menu panel in front of the player's eyes at several facings,
-  // parented so it follows them, sized large for the visibility test.
-  private static List<CPointWorldText> spawnMenuTexts(
-    CCSPlayerController controller, string msg) {
-    var list = new List<CPointWorldText>();
-    var pawn = controller.PlayerPawn.Value;
-    if (pawn is not { IsValid: true }) return list;
-    var origin = controller.AbsOrigin;
-    var angles = pawn.AbsRotation;
-    if (origin == null || angles == null) return list;
-
-    var forward = angles.Clone()!.ToForward();
-    var eyeZ    = pawn.ViewOffset.Z > 1 ? pawn.ViewOffset.Z : 64f;
-    var eyes    = new Vector(origin.X, origin.Y, origin.Z + eyeZ);
-    var pos     = eyes + forward * MenuDistance;
-
-    foreach (var (yaw, color) in Facings) {
-      var ent = Utilities.CreateEntityByName<CPointWorldText>("point_worldtext");
-      if (ent is not { IsValid: true }) continue;
-
-      ent.MessageText       = msg;
-      ent.Enabled           = true;
-      ent.FontSize          = MenuFontSize;
-      ent.Color             = color;
-      ent.Fullbright        = true;
-      ent.WorldUnitsPerPx   = MenuUnitsPerPx;
-      ent.FontName          = "Arial";
-      ent.JustifyHorizontal = PointWorldTextJustifyHorizontal_t
-       .POINT_WORLD_TEXT_JUSTIFY_HORIZONTAL_LEFT;
-      ent.JustifyVertical = PointWorldTextJustifyVertical_t
-       .POINT_WORLD_TEXT_JUSTIFY_VERTICAL_TOP;
-      ent.ReorientMode = PointWorldTextReorientMode_t
-       .POINT_WORLD_TEXT_REORIENT_NONE;
-
-      ent.Teleport(pos, new QAngle(angles.X, angles.Y + yaw, angles.Z + 90));
-      ent.DispatchSpawn();
-      ent.AcceptInput("SetParent", pawn, null, "!activator");
-      list.Add(ent);
-    }
-
-    Server.PrintToConsole($"[shop] spawn count={list.Count} pos={pos}");
-    return list;
-  }
-
-  private static void killText(Menu menu) {
-    foreach (var t in menu.Texts)
-      if (t.IsValid)
-        t.AcceptInput("Kill");
-    menu.Texts.Clear();
-  }
-
-  // CPointWorldText.MessageText is capped at 512 chars, and a full item list
-  // blows past that — so show a scrolling window of items around the selection.
-  private const int VisibleItems = 8;
-
-  private string buildText(Menu menu) {
-    var sb    = new StringBuilder();
-    var count = menu.Items.Count;
-    sb.Append($"=(eGO)= SHOP    {menu.Balance} credits\n");
-
-    var start = 0;
-    if (count > VisibleItems) {
-      start = Math.Clamp(menu.Selected - VisibleItems / 2, 0,
-        count - VisibleItems);
-    }
-
-    var end = Math.Min(count, start + VisibleItems);
-    if (start > 0) sb.Append("      ▲\n");
-    for (var i = start; i < end; i++) {
-      var item   = menu.Items[i];
-      var canBuy = item.CanPurchase(menu.Player) == PurchaseResult.SUCCESS
+    for (var i = 0; i < menu.Items.Count; i++) {
+      var item     = menu.Items[i];
+      var selected = i == menu.Selected;
+      var canBuy   = item.CanPurchase(menu.Player) == PurchaseResult.SUCCESS
         && item.Config.Price <= menu.Balance;
-      var cursor = i == menu.Selected ? "► " : "   ";
-      var mark   = canBuy ? "" : "  (x)";
-      sb.Append($"{cursor}{item.Name} - {item.Config.Price}{mark}\n");
+      var color  = selected ? "#ffd700" : canBuy ? "#7CFC00" : "#888888";
+      var cursor = selected ? "&#9654; " : "&nbsp;&nbsp;&nbsp;";
+      sb.Append(
+        $"<font color='{color}'>{cursor}{item.Name} — {item.Config.Price}</font><br>");
     }
 
-    if (end < count) sb.Append("      ▼\n");
-
-    sb.Append("← / →  move     E  buy     R  close");
+    sb.Append(
+      "<font color='#aaaaaa'>← / → move &nbsp;•&nbsp; E buy &nbsp;•&nbsp; R (or ping) to close</font>");
     return sb.ToString();
   }
 
