@@ -147,9 +147,9 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
   // How far in front of the eyes the panel floats, and how large the text is.
   // worldUnitsPerPx is deliberately small — the shared TextSpawner default (0.5)
   // is sized for a single head-letter and renders a whole menu block gigantic.
-  private const float MenuDistance    = 55f;
-  private const float MenuFontSize    = 40f;
-  private const float MenuUnitsPerPx  = 0.018f;
+  private const float MenuDistance    = 50f;
+  private const float MenuFontSize    = 50f;
+  private const float MenuUnitsPerPx  = 0.1f; // DEBUG: deliberately large
 
   // Kill the current entity (if any) and spawn a fresh one with the current
   // selection. Re-render on each nav keeps the entity path simple.
@@ -194,15 +194,19 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
       PointWorldTextJustifyHorizontal_t.POINT_WORLD_TEXT_JUSTIFY_HORIZONTAL_LEFT;
     ent.JustifyVertical   =
       PointWorldTextJustifyVertical_t.POINT_WORLD_TEXT_JUSTIFY_VERTICAL_TOP;
+    // No billboard for now — mimic the proven-visible role-icon hats exactly.
     ent.ReorientMode      =
-      PointWorldTextReorientMode_t.POINT_WORLD_TEXT_REORIENT_AROUND_UP;
+      PointWorldTextReorientMode_t.POINT_WORLD_TEXT_REORIENT_NONE;
 
     var forward = angles.Clone()!.ToForward();
-    var eyes    = new Vector(origin.X, origin.Y, origin.Z + pawn.ViewOffset.Z);
+    var eyeZ    = pawn.ViewOffset.Z > 1 ? pawn.ViewOffset.Z : 64f;
+    var eyes    = new Vector(origin.X, origin.Y, origin.Z + eyeZ);
     var pos     = eyes + forward * MenuDistance;
-    // Upright text (roll +90 like the role-icon hats); the AROUND_UP billboard
-    // yaws it to face the viewer, so the exact yaw here is not critical.
+    // Upright text facing back toward the player (roll +90 like the hats).
     var rot = new QAngle(angles.X, angles.Y + 180, angles.Z + 90);
+
+    Server.PrintToConsole(
+      $"[shop] spawn eyeZ={eyeZ:F1} eyes={eyes} fwd={forward} pos={pos} yaw={angles.Y:F0}");
 
     ent.Teleport(pos, rot);
     ent.DispatchSpawn();
