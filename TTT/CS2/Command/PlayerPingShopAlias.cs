@@ -152,8 +152,11 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     killText(menu);
     if (textSpawner == null) return;
 
+    var msg = buildText(menu);
+    if (msg.Length > 500) msg = msg[..500]; // hard cap: never exceed the buffer
+
     var setting = new TextSetting {
-      msg        = buildText(menu),
+      msg        = msg,
       color      = Color.White,
       fontSize   = 32,
       horizontal = PointWorldTextJustifyHorizontal_t
@@ -163,10 +166,13 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     try {
       menu.Text = textSpawner.CreateTextScreen(setting, controller)
        .FirstOrDefault();
-    } catch {
+      Server.PrintToConsole(
+        $"[shop] render len={msg.Length} valid={menu.Text?.IsValid} pos={menu.Text?.AbsOrigin}");
+    } catch (Exception e) {
       // Pawn not ready / entity creation failed — leave Text null; the next
       // nav (or the tick's validity check) will retry or close.
       menu.Text = null;
+      Server.PrintToConsole($"[shop] render THREW: {e.Message}");
     }
   }
 
