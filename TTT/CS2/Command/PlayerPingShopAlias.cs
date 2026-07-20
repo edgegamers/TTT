@@ -60,12 +60,7 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     if (player == null || !player.IsValid) return HookResult.Continue;
 
     var slot = player.Slot;
-    var wasOpen = open.Remove(slot);
-    // TEMP diag (remove after confirming): does a 2nd ping even reach us, and
-    // was the menu still open at that point? Distinguishes ping-cooldown
-    // swallowing the re-ping vs. an async open/close race.
-    Server.PrintToConsole($"[TTT/shop] player_ping slot={slot} wasOpen={wasOpen}");
-    if (wasOpen) return HookResult.Continue; // re-ping closes it
+    if (closeMenu(slot)) return HookResult.Continue; // re-ping closes it
 
     if (converter.GetPlayer(player) is not IOnlinePlayer apiPlayer)
       return HookResult.Continue;
@@ -101,12 +96,23 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     } else if (pressed.HasFlag(PlayerButtons.Reload)) {
       // Reliable close. A re-ping can be swallowed by CS2's ping cooldown, so
       // give the menu a cooldown-immune dismiss via the always-live button hook.
-      open.Remove(player.Slot);
+      closeMenu(player.Slot);
     } else if (pressed.HasFlag(PlayerButtons.Use)) {
-      var index = menu.Selected;
-      open.Remove(player.Slot);
-      buyIndex(player, index);
+      // Buy from the menu's own snapshot so the item purchased is exactly the
+      // one highlighted, regardless of what the sorter cache has done since.
+      var item = menu.Items[menu.Selected];
+      closeMenu(player.Slot);
+      buyItem(player, item);
     }
+  }
+
+  // The center panel lingers for a few seconds after we stop re-sending it,
+  // so overwrite it once with a blank frame to make the close visible.
+  private bool closeMenu(int slot) {
+    if (!open.Remove(slot)) return false;
+    var controller = Utilities.GetPlayerFromSlot(slot);
+    if (controller is { IsValid: true }) controller.PrintToCenterHtml(" ");
+    return true;
   }
 
   private void refresh() {
@@ -117,7 +123,7 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
       var controller = Utilities.GetPlayerFromSlot(slot);
       if (now > menu.Expiry
         || controller is not { IsValid: true, PawnIsAlive: true }) {
-        open.Remove(slot);
+        closeMenu(slot);
         continue;
       }
 
@@ -163,6 +169,17 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
 
     var cmdInfo = new CS2CommandInfo(provider, apiPlayer, 0, "css_shop", "buy",
       index.ToString()) { CallingContext = CommandCallingContext.Chat };
+    provider.GetRequiredService<ICommandManager>().ProcessCommand(cmdInfo);
+    itemSorter.InvalidateOrder(apiPlayer);
+  }
+
+  // Menu-driven purchase: buy by exact name (order-independent, so no
+  // staleness window) and let BuyCommand handle round/health/funds checks.
+  private void buyItem(CCSPlayerController player, IShopItem item) {
+    if (converter.GetPlayer(player) is not IOnlinePlayer apiPlayer) return;
+
+    var cmdInfo = new CS2CommandInfo(provider, apiPlayer, 0, "css_shop", "buy",
+      item.Name) { CallingContext = CommandCallingContext.Chat };
     provider.GetRequiredService<ICommandManager>().ProcessCommand(cmdInfo);
     itemSorter.InvalidateOrder(apiPlayer);
   }
