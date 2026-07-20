@@ -73,10 +73,13 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     if (player == null || !player.IsValid) return HookResult.Continue;
 
     var slot = player.Slot;
+    Server.PrintToConsole($"[shop] ping slot={slot} spawner={(textSpawner==null?"NULL":"ok")}");
     if (closeMenu(slot)) return HookResult.Continue; // re-ping closes it
 
-    if (converter.GetPlayer(player) is not IOnlinePlayer apiPlayer)
+    if (converter.GetPlayer(player) is not IOnlinePlayer apiPlayer) {
+      Server.PrintToConsole("[shop] ping: not an online player");
       return HookResult.Continue;
+    }
 
     // Snapshot + lock the sorted order, then open the menu once we have balance.
     var items = itemSorter.GetSortedItems(apiPlayer, true);
@@ -84,7 +87,8 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
       var balance = await shop.Load(apiPlayer);
       Server.NextWorldUpdate(() => {
         var controller = Utilities.GetPlayerFromSlot(slot);
-        if (controller is not { IsValid: true, PawnIsAlive: true }) return;
+        Server.PrintToConsole($"[shop] open nwu slot={slot} valid={controller?.IsValid} alive={controller?.PawnIsAlive} items={items.Count}");
+        if (controller is not { IsValid: true }) return;
 
         var menu = new Menu {
           Items  = items, Player = apiPlayer, Balance = balance, Selected = 0,
@@ -163,10 +167,12 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     try {
       menu.Text = textSpawner.CreateTextScreen(setting, controller)
        .FirstOrDefault();
-    } catch {
+      Server.PrintToConsole($"[shop] render ok textValid={menu.Text?.IsValid}");
+    } catch (Exception e) {
       // Pawn not ready / entity creation failed — leave Text null; the next
       // nav (or the tick's validity check) will retry or close.
       menu.Text = null;
+      Server.PrintToConsole($"[shop] render THREW: {e.Message}");
     }
   }
 
