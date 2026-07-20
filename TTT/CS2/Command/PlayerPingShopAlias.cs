@@ -36,6 +36,13 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
   private readonly Dictionary<int, Menu> open       = new();
   private const    int                   MenuSeconds = 15;
 
+  // PrintToCenterHtml fires EventShowSurvivalRespawnStatus with a per-message
+  // display duration (default 5s). We re-send every RefreshSeconds while the
+  // menu is open, so a 1s frame TTL keeps it stable yet lets the panel vanish
+  // ~1s after the last send instead of lingering for the full default 5s.
+  private const    float                 RefreshSeconds = 0.25f;
+  private const    int                   FrameSeconds   = 1;
+
   public void Dispose() { }
   public void Start() { }
 
@@ -45,7 +52,7 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
       CounterStrikeSharp.API.Core.Listeners.OnPlayerButtonsChanged>(onButtons);
 
     // Center HTML only shows for a moment, so re-send it while the menu is open.
-    plugin?.AddTimer(0.25f, refresh, TimerFlags.REPEAT);
+    plugin?.AddTimer(RefreshSeconds, refresh, TimerFlags.REPEAT);
 
     for (var i = 0; i < 10; i++) {
       var index = i; // capture
@@ -106,12 +113,14 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     }
   }
 
-  // The center panel lingers for a few seconds after we stop re-sending it,
-  // so overwrite it once with a blank frame to make the close visible.
+  // Overwrite the panel with an empty, short-lived frame so the close is
+  // immediate: empty content draws nothing, and the 1s TTL bounds any residue
+  // (a bare space would instead render the empty box for the default 5s).
   private bool closeMenu(int slot) {
     if (!open.Remove(slot)) return false;
     var controller = Utilities.GetPlayerFromSlot(slot);
-    if (controller is { IsValid: true }) controller.PrintToCenterHtml(" ");
+    if (controller is { IsValid: true })
+      controller.PrintToCenterHtml(string.Empty, FrameSeconds);
     return true;
   }
 
@@ -128,7 +137,7 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
       }
 
       if (converter.GetPlayer(controller) is IOnlinePlayer apiPlayer)
-        controller.PrintToCenterHtml(buildHtml(apiPlayer, menu));
+        controller.PrintToCenterHtml(buildHtml(apiPlayer, menu), FrameSeconds);
     }
   }
 
