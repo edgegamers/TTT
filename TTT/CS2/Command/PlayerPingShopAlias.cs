@@ -11,7 +11,8 @@ using ShopAPI;
 using TTT.API;
 using TTT.API.Command;
 using TTT.API.Player;
-using TTT.CS2.Hats;
+using TTT.CS2.Extensions;
+using Vector = CounterStrikeSharp.API.Modules.Utils.Vector;
 
 namespace TTT.CS2.Command;
 
@@ -29,9 +30,6 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     provider.GetRequiredService<IItemSorter>();
 
   private readonly IShop shop = provider.GetRequiredService<IShop>();
-
-  private readonly ITextSpawner? textSpawner =
-    provider.GetService<ITextSpawner>();
 
   private sealed class Menu {
     public required List<IShopItem>  Items;
@@ -146,34 +144,70 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     }
   }
 
+  // How far in front of the eyes the panel floats, and how large the text is.
+  // worldUnitsPerPx is deliberately small — the shared TextSpawner default (0.5)
+  // is sized for a single head-letter and renders a whole menu block gigantic.
+  private const float MenuDistance    = 55f;
+  private const float MenuFontSize    = 40f;
+  private const float MenuUnitsPerPx  = 0.018f;
+
   // Kill the current entity (if any) and spawn a fresh one with the current
-  // selection. Re-render on each nav keeps the entity path simple and proven.
+  // selection. Re-render on each nav keeps the entity path simple.
   private void render(CCSPlayerController controller, Menu menu) {
     killText(menu);
-    if (textSpawner == null) return;
 
     var msg = buildText(menu);
     if (msg.Length > 500) msg = msg[..500]; // hard cap: never exceed the buffer
 
-    var setting = new TextSetting {
-      msg        = msg,
-      color      = Color.White,
-      fontSize   = 32,
-      horizontal = PointWorldTextJustifyHorizontal_t
-       .POINT_WORLD_TEXT_JUSTIFY_HORIZONTAL_LEFT
-    };
-
     try {
-      menu.Text = textSpawner.CreateTextScreen(setting, controller)
-       .FirstOrDefault();
+      menu.Text = spawnMenuText(controller, msg);
       Server.PrintToConsole(
         $"[shop] render len={msg.Length} valid={menu.Text?.IsValid} pos={menu.Text?.AbsOrigin}");
     } catch (Exception e) {
-      // Pawn not ready / entity creation failed — leave Text null; the next
-      // nav (or the tick's validity check) will retry or close.
       menu.Text = null;
       Server.PrintToConsole($"[shop] render THREW: {e.Message}");
     }
+  }
+
+  // Spawn a screen-facing world-text panel in front of the player's eyes,
+  // parented so it follows them. Billboarded (AROUND_UP) so it always faces the
+  // viewer, left/top justified, and scaled down to a readable HUD-like size.
+  private static CPointWorldText? spawnMenuText(CCSPlayerController controller,
+    string msg) {
+    var pawn = controller.PlayerPawn.Value;
+    if (pawn is not { IsValid: true }) return null;
+    var origin = controller.AbsOrigin;
+    var angles = pawn.AbsRotation;
+    if (origin == null || angles == null) return null;
+
+    var ent = Utilities.CreateEntityByName<CPointWorldText>("point_worldtext");
+    if (ent is not { IsValid: true }) return null;
+
+    ent.MessageText       = msg;
+    ent.Enabled           = true;
+    ent.FontSize          = MenuFontSize;
+    ent.Color             = Color.White;
+    ent.Fullbright        = true;
+    ent.WorldUnitsPerPx   = MenuUnitsPerPx;
+    ent.FontName          = "Arial";
+    ent.JustifyHorizontal =
+      PointWorldTextJustifyHorizontal_t.POINT_WORLD_TEXT_JUSTIFY_HORIZONTAL_LEFT;
+    ent.JustifyVertical   =
+      PointWorldTextJustifyVertical_t.POINT_WORLD_TEXT_JUSTIFY_VERTICAL_TOP;
+    ent.ReorientMode      =
+      PointWorldTextReorientMode_t.POINT_WORLD_TEXT_REORIENT_AROUND_UP;
+
+    var forward = angles.Clone()!.ToForward();
+    var eyes    = new Vector(origin.X, origin.Y, origin.Z + pawn.ViewOffset.Z);
+    var pos     = eyes + forward * MenuDistance;
+    // Upright text (roll +90 like the role-icon hats); the AROUND_UP billboard
+    // yaws it to face the viewer, so the exact yaw here is not critical.
+    var rot = new QAngle(angles.X, angles.Y + 180, angles.Z + 90);
+
+    ent.Teleport(pos, rot);
+    ent.DispatchSpawn();
+    ent.AcceptInput("SetParent", pawn, null, "!activator");
+    return ent;
   }
 
   private static void killText(Menu menu) {
