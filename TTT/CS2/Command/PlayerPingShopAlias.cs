@@ -14,9 +14,9 @@ using TTT.API.Player;
 namespace TTT.CS2.Command;
 
 // Ping opens an on-screen, navigable shop menu — no key binds required:
-//   Left / Right arrow -> move the highlight,  E (use) -> buy,  R / ping -> close.
-// Arrow keys drive navigation because, unlike W/S, they don't walk the player
-// around while they browse. css_0..css_9 remain an optional quick-buy.
+//   W / S (or arrows) -> move the highlight,  E (use) -> buy,  R / ping -> close.
+// The player is frozen in place while the menu is open, so W/S drive the menu
+// without walking them around. css_0..css_9 remain an optional quick-buy.
 //
 // The menu is drawn with PrintToCenterHtml (the survival-respawn HUD panel).
 // A world-text entity would allow an instant, boxless close, but point_worldtext
@@ -79,28 +79,33 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     Task.Run(async () => {
       var balance = await shop.Load(apiPlayer);
       Server.NextWorldUpdate(() => {
+        var controller = Utilities.GetPlayerFromSlot(slot);
+        if (controller is not { IsValid: true, PawnIsAlive: true }) return;
+
         open[slot] = new Menu {
           Items  = items, Player = apiPlayer, Balance = balance, Selected = 0,
           Expiry = DateTime.Now.AddSeconds(MenuSeconds)
         };
+        setFrozen(controller, true); // hold still so W/S drives the menu
       });
     });
 
     return HookResult.Continue;
   }
 
-  // Left / Right arrows move the highlight; E (use) buys the highlighted item;
-  // R (reload) closes. Only active while the player has the menu open, so
-  // normal input is unaffected otherwise.
+  // W / S (or the arrow turn-keys) move the highlight; E (use) buys the
+  // highlighted item; R (reload) closes. Only active while the menu is open.
   private void onButtons(CCSPlayerController player, PlayerButtons pressed,
     PlayerButtons released) {
     if (!player.IsValid || !open.TryGetValue(player.Slot, out var menu)) return;
     if (menu.Items.Count == 0) return;
 
-    if (pressed.HasFlag(PlayerButtons.Left)) {
+    if (pressed.HasFlag(PlayerButtons.Forward)
+      || pressed.HasFlag(PlayerButtons.Left)) {
       menu.Selected = (menu.Selected - 1 + menu.Items.Count) % menu.Items.Count;
       menu.Expiry   = DateTime.Now.AddSeconds(MenuSeconds);
-    } else if (pressed.HasFlag(PlayerButtons.Right)) {
+    } else if (pressed.HasFlag(PlayerButtons.Back)
+      || pressed.HasFlag(PlayerButtons.Right)) {
       menu.Selected = (menu.Selected + 1) % menu.Items.Count;
       menu.Expiry   = DateTime.Now.AddSeconds(MenuSeconds);
     } else if (pressed.HasFlag(PlayerButtons.Reload)) {
@@ -115,10 +120,24 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     }
   }
 
-  // Close by ceasing to re-send: the last rendered frame times out by itself.
-  // We deliberately do NOT push a blank/empty frame here — an empty message
-  // wedges the survival-respawn panel on screen permanently.
-  private bool closeMenu(int slot) { return open.Remove(slot); }
+  // Close by ceasing to re-send (the last frame times out on its own) and
+  // unfreeze the player. We deliberately do NOT push a blank/empty frame — an
+  // empty message wedges the survival-respawn panel on screen permanently.
+  private bool closeMenu(int slot) {
+    if (!open.Remove(slot)) return false;
+    setFrozen(Utilities.GetPlayerFromSlot(slot), false);
+    return true;
+  }
+
+  // Freeze/unfreeze the pawn's movement. Every close path funnels through
+  // closeMenu, and the 15s expiry is a backstop, so the player can never be
+  // left frozen. Looking around still works — only translation is blocked.
+  private static void setFrozen(CCSPlayerController? controller, bool frozen) {
+    var pawn = controller?.PlayerPawn.Value;
+    if (pawn is not { IsValid: true }) return;
+    pawn.MoveType = frozen ? MoveType_t.MOVETYPE_NONE : MoveType_t.MOVETYPE_WALK;
+    Utilities.SetStateChanged(pawn, "CBaseEntity", "m_MoveType");
+  }
 
   private void refresh() {
     if (open.Count == 0) return;
@@ -153,7 +172,7 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     }
 
     sb.Append(
-      "<font color='#aaaaaa'>← / → move &nbsp;•&nbsp; E buy &nbsp;•&nbsp; R (or ping) to close</font>");
+      "<font color='#aaaaaa'>W / S move &nbsp;•&nbsp; E buy &nbsp;•&nbsp; R to close</font>");
     return sb.ToString();
   }
 
