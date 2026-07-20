@@ -36,8 +36,8 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     public required IOnlinePlayer    Player;
     public          int              Balance;
     public          int              Selected;
-    public          DateTime         Expiry;
-    public          CPointWorldText? Text;
+    public          DateTime               Expiry;
+    public          List<CPointWorldText>  Texts = new();
   }
 
   // slot -> open menu. The world-text entity persists on its own; the timer
@@ -139,7 +139,8 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
       var controller = Utilities.GetPlayerFromSlot(slot);
       if (now > menu.Expiry
         || controller is not { IsValid: true, PawnIsAlive: true }
-        || menu.Text is not { IsValid: true })
+        || menu.Texts.Count == 0
+        || menu.Texts.TrueForAll(t => !t.IsValid))
         closeMenu(slot);
     }
   }
@@ -151,8 +152,14 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
   private const float MenuFontSize    = 50f;
   private const float MenuUnitsPerPx  = 0.1f; // DEBUG: deliberately large
 
-  // Kill the current entity (if any) and spawn a fresh one with the current
-  // selection. Re-render on each nav keeps the entity path simple.
+  // DEBUG facing probe: one panel per yaw offset, each a distinct color. If
+  // point_worldtext is single-sided, exactly one color faces the player and
+  // tells us the correct yaw. If none show, it is not a facing problem.
+  private static readonly (float yaw, Color color)[] Facings = {
+    (0f, Color.White), (90f, Color.Red), (180f, Color.Lime), (270f, Color.Cyan)
+  };
+
+  // Kill the current entities and spawn a fresh set with the current selection.
   private void render(CCSPlayerController controller, Menu menu) {
     killText(menu);
 
@@ -160,63 +167,64 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     if (msg.Length > 500) msg = msg[..500]; // hard cap: never exceed the buffer
 
     try {
-      menu.Text = spawnMenuText(controller, msg);
+      menu.Texts = spawnMenuTexts(controller, msg);
       Server.PrintToConsole(
-        $"[shop] render len={msg.Length} valid={menu.Text?.IsValid} pos={menu.Text?.AbsOrigin}");
+        $"[shop] render len={msg.Length} count={menu.Texts.Count}");
     } catch (Exception e) {
-      menu.Text = null;
+      menu.Texts = new List<CPointWorldText>();
       Server.PrintToConsole($"[shop] render THREW: {e.Message}");
     }
   }
 
-  // Spawn a screen-facing world-text panel in front of the player's eyes,
-  // parented so it follows them. Billboarded (AROUND_UP) so it always faces the
-  // viewer, left/top justified, and scaled down to a readable HUD-like size.
-  private static CPointWorldText? spawnMenuText(CCSPlayerController controller,
-    string msg) {
+  // Spawn the menu panel in front of the player's eyes at several facings,
+  // parented so it follows them, sized large for the visibility test.
+  private static List<CPointWorldText> spawnMenuTexts(
+    CCSPlayerController controller, string msg) {
+    var list = new List<CPointWorldText>();
     var pawn = controller.PlayerPawn.Value;
-    if (pawn is not { IsValid: true }) return null;
+    if (pawn is not { IsValid: true }) return list;
     var origin = controller.AbsOrigin;
     var angles = pawn.AbsRotation;
-    if (origin == null || angles == null) return null;
-
-    var ent = Utilities.CreateEntityByName<CPointWorldText>("point_worldtext");
-    if (ent is not { IsValid: true }) return null;
-
-    ent.MessageText       = msg;
-    ent.Enabled           = true;
-    ent.FontSize          = MenuFontSize;
-    ent.Color             = Color.White;
-    ent.Fullbright        = true;
-    ent.WorldUnitsPerPx   = MenuUnitsPerPx;
-    ent.FontName          = "Arial";
-    ent.JustifyHorizontal =
-      PointWorldTextJustifyHorizontal_t.POINT_WORLD_TEXT_JUSTIFY_HORIZONTAL_LEFT;
-    ent.JustifyVertical   =
-      PointWorldTextJustifyVertical_t.POINT_WORLD_TEXT_JUSTIFY_VERTICAL_TOP;
-    // No billboard for now — mimic the proven-visible role-icon hats exactly.
-    ent.ReorientMode      =
-      PointWorldTextReorientMode_t.POINT_WORLD_TEXT_REORIENT_NONE;
+    if (origin == null || angles == null) return list;
 
     var forward = angles.Clone()!.ToForward();
     var eyeZ    = pawn.ViewOffset.Z > 1 ? pawn.ViewOffset.Z : 64f;
     var eyes    = new Vector(origin.X, origin.Y, origin.Z + eyeZ);
     var pos     = eyes + forward * MenuDistance;
-    // Upright text facing back toward the player (roll +90 like the hats).
-    var rot = new QAngle(angles.X, angles.Y + 180, angles.Z + 90);
 
-    Server.PrintToConsole(
-      $"[shop] spawn eyeZ={eyeZ:F1} eyes={eyes} fwd={forward} pos={pos} yaw={angles.Y:F0}");
+    foreach (var (yaw, color) in Facings) {
+      var ent = Utilities.CreateEntityByName<CPointWorldText>("point_worldtext");
+      if (ent is not { IsValid: true }) continue;
 
-    ent.Teleport(pos, rot);
-    ent.DispatchSpawn();
-    ent.AcceptInput("SetParent", pawn, null, "!activator");
-    return ent;
+      ent.MessageText       = msg;
+      ent.Enabled           = true;
+      ent.FontSize          = MenuFontSize;
+      ent.Color             = color;
+      ent.Fullbright        = true;
+      ent.WorldUnitsPerPx   = MenuUnitsPerPx;
+      ent.FontName          = "Arial";
+      ent.JustifyHorizontal = PointWorldTextJustifyHorizontal_t
+       .POINT_WORLD_TEXT_JUSTIFY_HORIZONTAL_LEFT;
+      ent.JustifyVertical = PointWorldTextJustifyVertical_t
+       .POINT_WORLD_TEXT_JUSTIFY_VERTICAL_TOP;
+      ent.ReorientMode = PointWorldTextReorientMode_t
+       .POINT_WORLD_TEXT_REORIENT_NONE;
+
+      ent.Teleport(pos, new QAngle(angles.X, angles.Y + yaw, angles.Z + 90));
+      ent.DispatchSpawn();
+      ent.AcceptInput("SetParent", pawn, null, "!activator");
+      list.Add(ent);
+    }
+
+    Server.PrintToConsole($"[shop] spawn count={list.Count} pos={pos}");
+    return list;
   }
 
   private static void killText(Menu menu) {
-    if (menu.Text is { IsValid: true }) menu.Text.AcceptInput("Kill");
-    menu.Text = null;
+    foreach (var t in menu.Texts)
+      if (t.IsValid)
+        t.AcceptInput("Kill");
+    menu.Texts.Clear();
   }
 
   // CPointWorldText.MessageText is capped at 512 chars, and a full item list
