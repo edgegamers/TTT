@@ -36,12 +36,13 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
   private readonly Dictionary<int, Menu> open       = new();
   private const    int                   MenuSeconds = 15;
 
-  // PrintToCenterHtml fires EventShowSurvivalRespawnStatus with a per-message
-  // display duration (default 5s). We re-send every RefreshSeconds while the
-  // menu is open, so a 1s frame TTL keeps it stable yet lets the panel vanish
-  // ~1s after the last send instead of lingering for the full default 5s.
+  // PrintToCenterHtml fires EventShowSurvivalRespawnStatus. Its int overload is
+  // NOT a plain display-seconds knob: a short value or an empty message leaves
+  // the panel stuck on screen indefinitely. So we only ever use the single-arg
+  // form with real content, and close by simply ceasing to re-send — the last
+  // frame then times out on its own (a few seconds). Cleaner instant-close
+  // needs a different HUD primitive (world-text entity); tracked separately.
   private const    float                 RefreshSeconds = 0.25f;
-  private const    int                   FrameSeconds   = 1;
 
   public void Dispose() { }
   public void Start() { }
@@ -113,16 +114,10 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     }
   }
 
-  // Overwrite the panel with an empty, short-lived frame so the close is
-  // immediate: empty content draws nothing, and the 1s TTL bounds any residue
-  // (a bare space would instead render the empty box for the default 5s).
-  private bool closeMenu(int slot) {
-    if (!open.Remove(slot)) return false;
-    var controller = Utilities.GetPlayerFromSlot(slot);
-    if (controller is { IsValid: true })
-      controller.PrintToCenterHtml(string.Empty, FrameSeconds);
-    return true;
-  }
+  // Close by ceasing to re-send: the last rendered frame times out by itself.
+  // We deliberately do NOT push a blank/empty frame here — an empty message
+  // wedges the panel on screen permanently (see the note by RefreshSeconds).
+  private bool closeMenu(int slot) { return open.Remove(slot); }
 
   private void refresh() {
     if (open.Count == 0) return;
@@ -137,7 +132,7 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
       }
 
       if (converter.GetPlayer(controller) is IOnlinePlayer apiPlayer)
-        controller.PrintToCenterHtml(buildHtml(apiPlayer, menu), FrameSeconds);
+        controller.PrintToCenterHtml(buildHtml(apiPlayer, menu));
     }
   }
 
