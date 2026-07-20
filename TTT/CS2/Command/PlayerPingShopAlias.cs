@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Linq;
 using System.Text;
 using CounterStrikeSharp.API;
@@ -10,12 +11,16 @@ using ShopAPI;
 using TTT.API;
 using TTT.API.Command;
 using TTT.API.Player;
+using TTT.CS2.Hats;
 
 namespace TTT.CS2.Command;
 
 // Ping opens an on-screen, navigable shop menu — no key binds required:
-//   W / S  -> move the highlight,  E (use) -> buy it,  ping again -> close.
-// css_0..css_9 are kept as an optional quick-buy for anyone who does bind keys.
+//   Left / Right arrow -> move the highlight,  E (use) -> buy,  ping/R -> close.
+// The menu is drawn as a world-text entity parented to the player (not the
+// survival-respawn HUD panel), so closing kills the entity for an instant,
+// boxless dismiss instead of the HUD panel's multi-second lingering box.
+// css_0..css_9 remain as an optional quick-buy for anyone who binds keys.
 public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
   private readonly IPlayerConverter<CCSPlayerController> converter =
     provider.GetRequiredService<IPlayerConverter<CCSPlayerController>>();
@@ -25,24 +30,23 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
 
   private readonly IShop shop = provider.GetRequiredService<IShop>();
 
+  private readonly ITextSpawner? textSpawner =
+    provider.GetService<ITextSpawner>();
+
   private sealed class Menu {
-    public required List<IShopItem> Items;
-    public          int            Balance;
-    public          int            Selected;
-    public          DateTime       Expiry;
+    public required List<IShopItem>  Items;
+    public required IOnlinePlayer    Player;
+    public          int              Balance;
+    public          int              Selected;
+    public          DateTime         Expiry;
+    public          CPointWorldText? Text;
   }
 
-  // slot -> open menu. Re-rendered on a timer; navigated via the buttons hook.
-  private readonly Dictionary<int, Menu> open       = new();
+  // slot -> open menu. The world-text entity persists on its own; the timer
+  // only enforces expiry / cleanup, and navigation re-renders on demand.
+  private readonly Dictionary<int, Menu> open        = new();
   private const    int                   MenuSeconds = 15;
-
-  // PrintToCenterHtml fires EventShowSurvivalRespawnStatus. Its int overload is
-  // NOT a plain display-seconds knob: a short value or an empty message leaves
-  // the panel stuck on screen indefinitely. So we only ever use the single-arg
-  // form with real content, and close by simply ceasing to re-send — the last
-  // frame then times out on its own (a few seconds). Cleaner instant-close
-  // needs a different HUD primitive (world-text entity); tracked separately.
-  private const    float                 RefreshSeconds = 0.25f;
+  private const    float                 TickSeconds = 0.5f;
 
   public void Dispose() { }
   public void Start() { }
@@ -52,8 +56,9 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     plugin?.RegisterListener<
       CounterStrikeSharp.API.Core.Listeners.OnPlayerButtonsChanged>(onButtons);
 
-    // Center HTML only shows for a moment, so re-send it while the menu is open.
-    plugin?.AddTimer(RefreshSeconds, refresh, TimerFlags.REPEAT);
+    // Enforce the 15s timeout and clean up if the player dies / the entity is
+    // killed elsewhere (e.g. round end kills all world-text).
+    plugin?.AddTimer(TickSeconds, tick, TimerFlags.REPEAT);
 
     for (var i = 0; i < 10; i++) {
       var index = i; // capture
@@ -78,32 +83,39 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     Task.Run(async () => {
       var balance = await shop.Load(apiPlayer);
       Server.NextWorldUpdate(() => {
-        open[slot] = new Menu {
-          Items = items, Balance = balance, Selected = 0,
+        var controller = Utilities.GetPlayerFromSlot(slot);
+        if (controller is not { IsValid: true, PawnIsAlive: true }) return;
+
+        var menu = new Menu {
+          Items  = items, Player = apiPlayer, Balance = balance, Selected = 0,
           Expiry = DateTime.Now.AddSeconds(MenuSeconds)
         };
+        open[slot] = menu;
+        render(controller, menu);
       });
     });
 
     return HookResult.Continue;
   }
 
-  // W/S move the highlight; E (use) buys the highlighted item. Only active while
-  // the player has the menu open, so normal movement is unaffected otherwise.
+  // Left / Right arrows move the highlight; E (use) buys the highlighted item;
+  // R (reload) closes. Only active while the player has the menu open, so
+  // normal input is unaffected otherwise.
   private void onButtons(CCSPlayerController player, PlayerButtons pressed,
     PlayerButtons released) {
     if (!player.IsValid || !open.TryGetValue(player.Slot, out var menu)) return;
     if (menu.Items.Count == 0) return;
 
-    if (pressed.HasFlag(PlayerButtons.Forward)) {
+    if (pressed.HasFlag(PlayerButtons.Left)) {
       menu.Selected = (menu.Selected - 1 + menu.Items.Count) % menu.Items.Count;
       menu.Expiry   = DateTime.Now.AddSeconds(MenuSeconds);
-    } else if (pressed.HasFlag(PlayerButtons.Back)) {
+      render(player, menu);
+    } else if (pressed.HasFlag(PlayerButtons.Right)) {
       menu.Selected = (menu.Selected + 1) % menu.Items.Count;
       menu.Expiry   = DateTime.Now.AddSeconds(MenuSeconds);
+      render(player, menu);
     } else if (pressed.HasFlag(PlayerButtons.Reload)) {
-      // Reliable close. A re-ping can be swallowed by CS2's ping cooldown, so
-      // give the menu a cooldown-immune dismiss via the always-live button hook.
+      // Cooldown-immune close: a re-ping can be swallowed by CS2's ping cooldown.
       closeMenu(player.Slot);
     } else if (pressed.HasFlag(PlayerButtons.Use)) {
       // Buy from the menu's own snapshot so the item purchased is exactly the
@@ -114,46 +126,69 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     }
   }
 
-  // Close by ceasing to re-send: the last rendered frame times out by itself.
-  // We deliberately do NOT push a blank/empty frame here — an empty message
-  // wedges the panel on screen permanently (see the note by RefreshSeconds).
-  private bool closeMenu(int slot) { return open.Remove(slot); }
+  // Instant, boxless close: killing the world-text entity removes it at once.
+  private bool closeMenu(int slot) {
+    if (!open.Remove(slot, out var menu)) return false;
+    killText(menu);
+    return true;
+  }
 
-  private void refresh() {
+  private void tick() {
     if (open.Count == 0) return;
     var now = DateTime.Now;
     foreach (var slot in open.Keys.ToList()) {
       var menu       = open[slot];
       var controller = Utilities.GetPlayerFromSlot(slot);
       if (now > menu.Expiry
-        || controller is not { IsValid: true, PawnIsAlive: true }) {
+        || controller is not { IsValid: true, PawnIsAlive: true }
+        || menu.Text is not { IsValid: true })
         closeMenu(slot);
-        continue;
-      }
-
-      if (converter.GetPlayer(controller) is IOnlinePlayer apiPlayer)
-        controller.PrintToCenterHtml(buildHtml(apiPlayer, menu));
     }
   }
 
-  private string buildHtml(IOnlinePlayer apiPlayer, Menu menu) {
+  // Kill the current entity (if any) and spawn a fresh one with the current
+  // selection. Re-render on each nav keeps the entity path simple and proven.
+  private void render(CCSPlayerController controller, Menu menu) {
+    killText(menu);
+    if (textSpawner == null) return;
+
+    var setting = new TextSetting {
+      msg        = buildText(menu),
+      color      = Color.White,
+      fontSize   = 32,
+      horizontal = PointWorldTextJustifyHorizontal_t
+       .POINT_WORLD_TEXT_JUSTIFY_HORIZONTAL_LEFT
+    };
+
+    try {
+      menu.Text = textSpawner.CreateTextScreen(setting, controller)
+       .FirstOrDefault();
+    } catch {
+      // Pawn not ready / entity creation failed — leave Text null; the next
+      // nav (or the tick's validity check) will retry or close.
+      menu.Text = null;
+    }
+  }
+
+  private static void killText(Menu menu) {
+    if (menu.Text is { IsValid: true }) menu.Text.AcceptInput("Kill");
+    menu.Text = null;
+  }
+
+  private string buildText(Menu menu) {
     var sb = new StringBuilder();
-    sb.Append(
-      $"<font color='#4ea1ff'>=(eGO)= SHOP</font>  <font color='#cccccc'>{menu.Balance} credits</font><br>");
+    sb.Append($"=(eGO)= SHOP    {menu.Balance} credits\n");
 
     for (var i = 0; i < menu.Items.Count; i++) {
-      var item     = menu.Items[i];
-      var selected = i == menu.Selected;
-      var canBuy   = item.CanPurchase(apiPlayer) == PurchaseResult.SUCCESS
+      var item   = menu.Items[i];
+      var canBuy = item.CanPurchase(menu.Player) == PurchaseResult.SUCCESS
         && item.Config.Price <= menu.Balance;
-      var color  = selected ? "#ffd700" : canBuy ? "#7CFC00" : "#888888";
-      var cursor = selected ? "&#9654; " : "&nbsp;&nbsp;&nbsp;";
-      sb.Append(
-        $"<font color='{color}'>{cursor}{item.Name} — {item.Config.Price}</font><br>");
+      var cursor = i == menu.Selected ? "► " : "   ";
+      var mark   = canBuy ? "" : "  (x)";
+      sb.Append($"{cursor}{item.Name} - {item.Config.Price}{mark}\n");
     }
 
-    sb.Append(
-      "<font color='#aaaaaa'>W / S move &nbsp;•&nbsp; E buy &nbsp;•&nbsp; R (or ping) to close</font>");
+    sb.Append("← / →  move     E  buy     R  close");
     return sb.ToString();
   }
 
