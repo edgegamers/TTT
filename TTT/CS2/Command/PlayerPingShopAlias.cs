@@ -73,13 +73,10 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     if (player == null || !player.IsValid) return HookResult.Continue;
 
     var slot = player.Slot;
-    Server.PrintToConsole($"[shop] ping slot={slot} spawner={(textSpawner==null?"NULL":"ok")}");
     if (closeMenu(slot)) return HookResult.Continue; // re-ping closes it
 
-    if (converter.GetPlayer(player) is not IOnlinePlayer apiPlayer) {
-      Server.PrintToConsole("[shop] ping: not an online player");
+    if (converter.GetPlayer(player) is not IOnlinePlayer apiPlayer)
       return HookResult.Continue;
-    }
 
     // Snapshot + lock the sorted order, then open the menu once we have balance.
     var items = itemSorter.GetSortedItems(apiPlayer, true);
@@ -87,7 +84,6 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
       var balance = await shop.Load(apiPlayer);
       Server.NextWorldUpdate(() => {
         var controller = Utilities.GetPlayerFromSlot(slot);
-        Server.PrintToConsole($"[shop] open nwu slot={slot} valid={controller?.IsValid} alive={controller?.PawnIsAlive} items={items.Count}");
         if (controller is not { IsValid: true }) return;
 
         var menu = new Menu {
@@ -167,12 +163,10 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     try {
       menu.Text = textSpawner.CreateTextScreen(setting, controller)
        .FirstOrDefault();
-      Server.PrintToConsole($"[shop] render ok textValid={menu.Text?.IsValid}");
-    } catch (Exception e) {
+    } catch {
       // Pawn not ready / entity creation failed — leave Text null; the next
       // nav (or the tick's validity check) will retry or close.
       menu.Text = null;
-      Server.PrintToConsole($"[shop] render THREW: {e.Message}");
     }
   }
 
@@ -181,11 +175,24 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
     menu.Text = null;
   }
 
+  // CPointWorldText.MessageText is capped at 512 chars, and a full item list
+  // blows past that — so show a scrolling window of items around the selection.
+  private const int VisibleItems = 8;
+
   private string buildText(Menu menu) {
-    var sb = new StringBuilder();
+    var sb    = new StringBuilder();
+    var count = menu.Items.Count;
     sb.Append($"=(eGO)= SHOP    {menu.Balance} credits\n");
 
-    for (var i = 0; i < menu.Items.Count; i++) {
+    var start = 0;
+    if (count > VisibleItems) {
+      start = Math.Clamp(menu.Selected - VisibleItems / 2, 0,
+        count - VisibleItems);
+    }
+
+    var end = Math.Min(count, start + VisibleItems);
+    if (start > 0) sb.Append("      ▲\n");
+    for (var i = start; i < end; i++) {
       var item   = menu.Items[i];
       var canBuy = item.CanPurchase(menu.Player) == PurchaseResult.SUCCESS
         && item.Config.Price <= menu.Balance;
@@ -193,6 +200,8 @@ public class PlayerPingShopAlias(IServiceProvider provider) : IPluginModule {
       var mark   = canBuy ? "" : "  (x)";
       sb.Append($"{cursor}{item.Name} - {item.Config.Price}{mark}\n");
     }
+
+    if (end < count) sb.Append("      ▼\n");
 
     sb.Append("← / →  move     E  buy     R  close");
     return sb.ToString();
