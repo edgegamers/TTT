@@ -5,6 +5,7 @@ using TTT.API.Game;
 using TTT.API.Messages;
 using TTT.API.Role;
 using TTT.API.Storage;
+using TTT.Game.Damage;
 using TTT.Game.Events.Game;
 using TTT.Game.Events.Player;
 using TTT.Game.Listeners;
@@ -14,16 +15,17 @@ namespace TTT.Karma;
 
 public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
   private readonly Dictionary<string, int> badKills = new();
-  private readonly List<(string, string)> firstDamage = new();
 
-  private readonly IMessenger messenger = 
+  private readonly IMessenger messenger =
     provider.GetRequiredService<IMessenger>();
   private readonly IGameManager games =
     provider.GetRequiredService<IGameManager>();
   private readonly IRoleAssigner roles =
     provider.GetRequiredService<IRoleAssigner>();
-  private readonly IKarmaUpdateManager karmaUpdateManager = 
+  private readonly IKarmaUpdateManager karmaUpdateManager =
     provider.GetRequiredService<IKarmaUpdateManager>();
+  private readonly IDamageTracker damageTracker =
+    provider.GetRequiredService<IDamageTracker>();
 
   public bool GiveKarmaOnRoundEnd = true;
 
@@ -37,25 +39,6 @@ public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
   [UsedImplicitly]
   public void OnRoundStart(GameStateUpdateEvent ev) {
     badKills.Clear();
-    firstDamage.Clear();
-  }
-
-  [EventHandler]
-  [UsedImplicitly]
-  public void OnHurt(PlayerDamagedEvent ev) {
-    if (games.ActiveGame is not { State: State.IN_PROGRESS }) return;
-
-    var victim   = ev.Player;
-    var attacker = ev.Attacker;
-    if (attacker == null) return;
-
-    // If the victim already damaged the attacker, don't mark this as first damage.
-    if (firstDamage.Contains((victim.Id, attacker.Id))) return;
-    
-    // Otherwise, mark down that the attacker damaged the victim first.
-    var pairing = (attacker.Id, victim.Id);
-    if (!firstDamage.Contains(pairing))
-      firstDamage.Add(pairing);
   }
 
   [EventHandler]
@@ -69,8 +52,9 @@ public class KarmaListener(IServiceProvider provider) : BaseListener(provider) {
     if (killer == null) return;
     if (victim.Id == killer.Id) return;
     
-    var killerIsGuilty = firstDamage.Contains((killer.Id, victim.Id));
-    var victimIsGuilty = firstDamage.Contains((victim.Id, killer.Id));
+    var fault = damageTracker.GetFault(killer.Id, victim.Id);
+    var killerIsGuilty = fault == KillFault.KillerGuilty;
+    var victimIsGuilty = fault == KillFault.VictimGuilty;
     // Assume killerIsGuilty if there is no damage info.
     if (!killerIsGuilty && !victimIsGuilty) {
       killerIsGuilty = true;

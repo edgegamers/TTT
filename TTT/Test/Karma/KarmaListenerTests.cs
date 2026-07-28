@@ -3,6 +3,7 @@ using TTT.API.Events;
 using TTT.API.Game;
 using TTT.API.Player;
 using TTT.API.Role;
+using TTT.Game.Damage;
 using TTT.Game.Events.Player;
 using TTT.Game.Roles;
 using TTT.Karma;
@@ -37,6 +38,7 @@ public class KarmaListenerTests {
       new DetectiveRole(provider)
     };
 
+    bus.RegisterListener(provider.GetRequiredService<IDamageTracker>());
     var listener = new KarmaListener(provider);
     listener.GiveKarmaOnRoundEnd = false;
 

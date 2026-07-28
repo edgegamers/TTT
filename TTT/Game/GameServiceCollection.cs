@@ -3,6 +3,7 @@ using TTT.API.Events;
 using TTT.API.Extensions;
 using TTT.API.Role;
 using TTT.Game.Commands;
+using TTT.Game.Damage;
 using TTT.Game.Listeners;
 using TTT.Game.Listeners.Loggers;
 using TTT.Game.Roles;
@@ -15,6 +16,7 @@ public static class GameServiceCollection {
     collection.AddScoped<IRoleAssigner, RoleAssigner>();
 
     // Listeners
+    collection.AddModBehavior<IDamageTracker, DamageTracker>();
     collection.AddModBehavior<GameEndLogsListener>();
     collection.AddModBehavior<PlayerCausesEndListener>();
     collection.AddModBehavior<PlayerJoinStarting>();
