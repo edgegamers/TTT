@@ -1,5 +1,5 @@
 ﻿using CounterStrikeSharp.API.Core;
-using RayTraceAPI;
+using CounterStrikeSharp.API.Modules.Utils;
 
 namespace TTT.CS2.Extensions;
 
@@ -14,13 +14,7 @@ public static class TraceResultExtensions {
     where T : CEntityInstance {
     entity = null;
 
-    // The ray hit nothing, world geometry, or a static prop: HitEntity is a
-    // null/invalid native pointer. Wrapping it and reading a schema field
-    // (DesignerName) dereferences bad memory and hard-crashes the server, so
-    // bail before touching it.
-    if (trace.HitEntity == nint.Zero) return false;
-
-    var entityInstance = new CEntityInstance(trace.HitEntity);
+    var entityInstance = trace.HitEntity();
     if (!entityInstance.IsValid) return false;
 
     var hitName = entityInstance.DesignerName;

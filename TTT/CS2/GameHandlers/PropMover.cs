@@ -4,7 +4,6 @@ using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Timers;
 using CounterStrikeSharp.API.Modules.Utils;
 using Microsoft.Extensions.DependencyInjection;
-using RayTraceAPI;
 using TTT.API;
 using TTT.API.Events;
 using TTT.API.Player;
@@ -61,12 +60,11 @@ public class PropMover(IServiceProvider provider) : IPluginModule {
     var playerPos = player.PlayerPawn.Value?.AbsOrigin;
     if (playerPos == null) return;
     var result = player.GetGameTraceByEyePosition(new TraceOptions {
-      DrawBeam         = 0,
-      InteractsWith    = (ulong)InteractionLayers.MASK_SHOT_FULL,
-      InteractsExclude = (ulong)InteractionLayers.NoDraw
+      InteractsWith    = Contents.Solid,
+      InteractsExclude = Contents.NoDraw
     });
 
-    if (!result.DidHit) return;
+    if (!result.DidHit()) return;
 
     // A body is a prop_ragdoll, not a "player" entity, so don't pre-filter the
     // hit on a "player" designer name (that guard blocked all body pickup and
@@ -79,7 +77,7 @@ public class PropMover(IServiceProvider provider) : IPluginModule {
       result.TryGetHitEntityByDesignerName<CBaseEntity>(
         "prop_physics_multiplayer", out hitEntity);
 
-    var playerDist = playerPos.Distance(result.EndPos.toVector());
+    var playerDist = playerPos.Distance(result.EndPos);
     if (playerDist > MAX_DISTANCE) return;
     if (hitEntity == null) return;
 
@@ -129,18 +127,17 @@ public class PropMover(IServiceProvider provider) : IPluginModule {
     }
 
     var result = player.GetGameTraceByEyePosition(new TraceOptions {
-      DrawBeam         = 0,
-      InteractsWith    = (ulong)InteractionLayers.MASK_SHOT_FULL,
-      InteractsExclude = (ulong)InteractionLayers.NoDraw
+      InteractsWith    = Contents.Solid,
+      InteractsExclude = Contents.NoDraw
     });
 
     var isOnSelf =
       result.TryGetHitEntityByDesignerName<CBaseEntity>(ent.DesignerName,
         out _);
 
-    var endPos = result.EndPos.toVector();
+    var endPos = result.EndPos;
 
-    if (isOnSelf || result.EndPos.toVector().Distance(playerOrigin)
+    if (isOnSelf || result.EndPos.Distance(playerOrigin)
       > MAX_HOLDING_DISTANCE)
       endPos = playerOrigin
         + playerPawn.EyeAngles.ToForward() * MAX_HOLDING_DISTANCE;

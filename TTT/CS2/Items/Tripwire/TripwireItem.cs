@@ -5,7 +5,6 @@ using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Utils;
 using JetBrains.Annotations;
 using Microsoft.Extensions.DependencyInjection;
-using RayTraceAPI;
 using ShopAPI;
 using ShopAPI.Configs;
 using ShopAPI.Configs.Traitor;
@@ -99,8 +98,8 @@ public class TripwireItem(IServiceProvider provider)
         () => {
           Server.NextWorldUpdate(() => {
             createTripwireBeam(player, tripwire,
-              originTrace.Value.EndPos.toVector(),
-              endTrace.Value.EndPos.toVector());
+              originTrace.Value.EndPos,
+              endTrace.Value.EndPos);
           });
         });
     });
@@ -118,33 +117,31 @@ public class TripwireItem(IServiceProvider provider)
     if (gamePlayer == null || playerPawn == null) return false;
 
     originTrace = gamePlayer.GetGameTraceByEyePosition(new TraceOptions {
-      DrawBeam         = 0,
-      InteractsWith    = (ulong)InteractionLayers.MASK_SHOT_FULL,
-      InteractsExclude = (ulong)InteractionLayers.NoDraw});
+      InteractsWith    = Contents.Solid,
+      InteractsExclude = Contents.NoDraw});
     var origin = gamePlayer.GetEyePosition();
     if (origin == null) return false;
 
-    if (origin.DistanceSquared(originTrace.Value.EndPos.toVector())
+    if (origin.DistanceSquared(originTrace.Value.EndPos)
       > config.MaxPlacementDistanceSquared) {
       Shop.AddBalance(player, config.Price, "Refund");
       Messenger.Message(player, Locale[TripwireMsgs.SHOP_ITEM_TRIPWIRE_TOOFAR]);
       return false;
     }
 
-    var angles = originTrace.Value.Normal.toVector().toAngle();
+    var angles = originTrace.Value.Normal.toAngle();
 
     // Ignore the player's PAWN, not the controller. TraceShape dereferences the
     // ignore entity's collidable to build the trace filter; a CCSPlayerController
     // has no collidable, so passing it crashes the server inside
     // CRayTrace::TraceShapeInternal. The pawn is the body we want excluded anyway.
-    var isSuccess = EgoApi.RAY_TRACE.Get()!
-     .TraceShape(originTrace.Value.EndPos.toVector(), angles, playerPawn,
+    var result = Trace
+     .TraceShape(originTrace.Value.EndPos, angles, playerPawn,
         new TraceOptions {
-          DrawBeam         = 0,
-          InteractsWith    = (ulong)InteractionLayers.MASK_SHOT_FULL,
-          InteractsExclude = (ulong)InteractionLayers.NoDraw
-        }, out var result);
-    if (!isSuccess) return false;
+          InteractsWith    = Contents.Solid,
+          InteractsExclude = Contents.NoDraw
+        });
+    if (!result.DidHit()) return false;
     endTrace = result;
 
     tripwire = Utilities.CreateEntityByName<CDynamicProp>("prop_dynamic");
@@ -158,8 +155,8 @@ public class TripwireItem(IServiceProvider provider)
     tripwire.SetModel(
       "models/generic/conveyor_control_panel_01/conveyor_button_02.vmdl");
 
-    tripwire.Teleport(originTrace.Value.EndPos.toVector(),
-      originTrace.Value.Normal.toVector().toAngle());
+    tripwire.Teleport(originTrace.Value.EndPos,
+      originTrace.Value.Normal.toAngle());
     tripwire.EmitSound("Weapon_ELITE.Clipout");
     return true;
   }

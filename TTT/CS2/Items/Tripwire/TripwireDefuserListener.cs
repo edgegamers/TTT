@@ -1,7 +1,7 @@
 ﻿using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
+using CounterStrikeSharp.API.Modules.Utils;
 using Microsoft.Extensions.DependencyInjection;
-using RayTraceAPI;
 using ShopAPI;
 using ShopAPI.Configs.Traitor;
 using TTT.API;
@@ -60,13 +60,12 @@ public class TripwireDefuserListener(IServiceProvider provider)
     if (tripwireTracker == null) return null;
 
     var result = player.GetGameTraceByEyePosition(new TraceOptions {
-      DrawBeam         = 0,
-      InteractsWith    = (ulong)InteractionLayers.MASK_SHOT_FULL,
-      InteractsExclude = (ulong)InteractionLayers.NoDraw
+      InteractsWith    = Contents.Solid,
+      InteractsExclude = Contents.NoDraw
     });
 
     if (tripwireTracker.ActiveTripwires.Count == 0) return null;
-    var raytracePos = result.EndPos.toVector();
+    var raytracePos = result.EndPos;
 
     var closest =
       tripwireTracker?.ActiveTripwires.MinBy(i

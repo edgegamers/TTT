@@ -4,7 +4,6 @@ using CounterStrikeSharp.API.Modules.Timers;
 using CounterStrikeSharp.API.Modules.Utils;
 using JetBrains.Annotations;
 using Microsoft.Extensions.DependencyInjection;
-using RayTraceAPI;
 using ShopAPI.Configs.Traitor;
 using TTT.API;
 using TTT.API.Events;
@@ -65,18 +64,18 @@ public class TripwireMovementListener(IServiceProvider provider)
       var direction = wire.EndPos - wire.StartPos;
       var angle     = direction.Normalized().toAngle();
 
-      EgoApi.RAY_TRACE.Get()!.TraceShape(wire.StartPos, angle, null,
+      var result = Trace.TraceShape(wire.StartPos, angle, null,
         new TraceOptions {
-          DrawBeam         = 0,
-          InteractsWith    = (ulong)InteractionLayers.MASK_SHOT_FULL,
-          InteractsExclude = (ulong)InteractionLayers.NoDraw
-        }, out var result);
+          InteractsWith    = Contents.Solid,
+          InteractsExclude = Contents.NoDraw
+        });
 
       // The ray hits the player PAWN; resolve the controller from it before
       // looking up the player (SteamID/Index read off the pawn are garbage).
-      if (!result.DidHit
-        || !result.TryGetHitEntityByDesignerName<CCSPlayerPawn>("player",
-          out var pawn) || pawn == null)
+      if (!result.DidHit()) continue;
+
+      if (!result.TryGetHitEntityByDesignerName<CCSPlayerPawn>("player",
+        out var pawn) || pawn == null)
         continue;
 
       var hitController = pawn.Controller.Value?.As<CCSPlayerController>();

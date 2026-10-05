@@ -1,7 +1,7 @@
 ﻿using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Timers;
-using RayTraceAPI;
+using CounterStrikeSharp.API.Modules.Utils;
 using TTT.API;
 using TTT.CS2.Extensions;
 
@@ -21,9 +21,9 @@ public class NameDisplayer : IPluginModule {
       if (player.GetHealth() <= 0) continue;
 
       var result = player.GetGameTraceByEyePosition(new TraceOptions {
-        DrawBeam         = 0,
-        InteractsWith    = (ulong)InteractionLayers.Player,
-        InteractsExclude = (ulong)InteractionLayers.NoDraw
+        InteractsAs      = Contents.Player,
+        InteractsWith    = Contents.Player,
+        InteractsExclude = Contents.NoDraw
       });
 
       // The ray hits the player PAWN, not the controller. Reading PlayerName

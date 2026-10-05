@@ -3,8 +3,6 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.UserMessages;
 using CounterStrikeSharp.API.Modules.Utils;
-using RayTraceAPI;
-using TTT.CS2.ThirdParties.eGO;
 
 namespace TTT.CS2.Extensions;
 
@@ -140,8 +138,8 @@ public static class PlayerExtensions {
     var endOrigin = new Vector(eyePosition.X + forward.X * 8192,
       eyePosition.Y + forward.Y * 8192, eyePosition.Z + forward.Z * 8192);
 
-    EgoApi.RAY_TRACE.Get()!.TraceEndShape(eyePosition, endOrigin, playerPawn,
-      options, out var result);
+    var result = Trace.TraceEndShape(eyePosition, endOrigin, playerPawn,
+      options);
     
     return result;
   }
